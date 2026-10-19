@@ -1,0 +1,4506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Habit Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper: #F1F1EE;
+    --paper-elev: #FAFAFA;
+    --ink: #1D2120;
+    --ink-soft: #5C6360;
+    --ink-faint: #8D9390;
+    --line: #DADBD7;
+    --line-strong: #C1C3BE;
+    --moss: #47624A;
+    --moss-deep: #2C3E2E;
+    --moss-soft: #DCE3DB;
+    --accent-vibrant: #268A4E;
+    --accent-vibrant-deep: #1B6B3B;
+    --amber: #B0863F;
+    --amber-soft: #EDE2C9;
+    --rust: #A24B3D;
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-full: 999px;
+    --shadow-card: 0 1px 0 rgba(30,42,36,0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Work Sans', sans-serif;
+  }
+
+  #app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 28px 80px;
+  }
+
+  /* ---------- Header ---------- */
+
+  .ledger-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+
+  .ledger-title {
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 700;
+    font-size: 34px;
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  .month-nav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: 'Work Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .month-nav button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong);
+    background: var(--paper-elev);
+    color: var(--moss-deep);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .month-nav button:hover { background: var(--moss-soft); }
+  .month-nav button:active { transform: scale(0.94); }
+  .month-nav button:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
+
+  .section-gap {
+    margin-top: 44px;
+  }
+
+  /* ---------- Calendar rhythm ---------- */
+
+  .section-heading {
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+    margin: 0 0 14px;
+  }
+
+  .rhythm-label {
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+    margin: 0 0 14px;
+  }
+
+  .calendar-wrap {
+    max-width: 336px;
+    margin: 0 auto;
+  }
+
+  .cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .cal-weekdays span {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .cal-cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    transition: transform 0.1s ease;
+  }
+  .cal-cell:not(.empty):hover { transform: scale(1.12); }
+  .cal-cell.empty { background: transparent; }
+  .cal-cell.today { box-shadow: 0 0 0 1.5px var(--rust); font-weight: 700; }
+
+  .rhythm-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .view-toggle {
+    display: inline-flex;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+  .view-toggle button {
+    padding: 6px 16px;
+    font-family: 'Work Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--paper-elev);
+    color: var(--ink-soft);
+    border: none;
+    cursor: pointer;
+  }
+  .view-toggle button + button { border-left: 1px solid var(--line-strong); }
+  .view-toggle button.active { background: var(--moss-deep); color: var(--paper-elev); }
+
+  .year-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Work Sans', sans-serif;
+    font-size: 16px;
+    color: var(--ink);
+  }
+  .year-nav button {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong);
+    background: var(--paper-elev);
+    color: var(--moss-deep);
+    cursor: pointer;
+  }
+  .year-nav button:hover { background: var(--moss-soft); }
+
+  .year-loading {
+    padding: 30px 0;
+    text-align: center;
+    color: var(--ink-faint);
+    font-family: 'Work Sans', sans-serif;
+    font-style: italic;
+    font-size: 14px;
+  }
+
+  .year-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 24px 20px;
+  }
+
+  .mini-month-title {
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink);
+    margin: 0 0 8px;
+    cursor: pointer;
+  }
+  .mini-month-title:hover { color: var(--moss-deep); }
+
+  .mini-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .mini-cal-cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .mini-cal-cell.empty { background: transparent; border-color: transparent; cursor: default; }
+  .mini-cal-cell.today { box-shadow: 0 0 0 1.5px var(--rust); }
+  .mini-cal-cell:hover { transform: scale(1.25); }
+
+  .rhythm-filter {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 16px;
+  }
+  .filter-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--line-strong);
+    background: var(--paper-elev);
+    font-family: 'Work Sans', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .filter-trigger:hover { border-color: var(--moss); }
+  .filter-trigger .chevron { font-size: 10px; color: var(--ink-faint); }
+
+  .filter-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 190px;
+    background: var(--paper-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 28px rgba(30, 42, 36, 0.2);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+  }
+  .filter-option {
+    text-align: left;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    font-family: 'Work Sans', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .filter-option:hover { background: var(--moss-soft); }
+  .filter-option.active {
+    background: var(--moss-deep);
+    color: var(--paper-elev);
+  }
+
+  .rhythm-legend {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 14px;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .rhythm-legend .swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    border: 1px solid var(--line);
+  }
+  .colors-edit-link {
+    background: none;
+    border: none;
+    color: var(--moss-deep);
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 8px;
+  }
+
+  .color-editor-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .color-editor-section-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    margin: 6px 0 2px;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+  .color-editor-section-label:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+  .color-editor-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .color-editor-row input[type="color"] {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: none;
+    flex-shrink: 0;
+  }
+  .color-editor-row .swatch-preview {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .color-editor-label { flex: 1; }
+
+  .new-color-preview {
+    background: var(--paper);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-top: 4px;
+  }
+  .new-color-preview p {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .existing-scale-strip {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 10px;
+  }
+  .existing-scale-strip .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+  }
+
+
+  /* ---------- Table ---------- */
+
+  .ledger-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--paper-elev);
+  }
+
+  table.ledger {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 720px;
+  }
+
+  table.ledger thead th {
+    text-align: left;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink);
+    padding: 14px 10px;
+    border-bottom: 1px solid var(--line-strong);
+    position: relative;
+    white-space: nowrap;
+  }
+
+  table.ledger thead th.habit-col {
+    text-align: center;
+  }
+
+  .habit-col-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .habit-icon { font-size: 16px; }
+  .habit-name { font-size: 12px; }
+
+  .habit-col-actions {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: none;
+    gap: 2px;
+  }
+  table.ledger thead th.habit-col:hover .habit-col-actions { display: flex; }
+  .habit-col-actions button {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--ink-faint);
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .habit-col-actions .edit-habit:hover { background: var(--moss); color: white; }
+  .habit-col-actions .remove-habit:hover { background: var(--rust); color: white; }
+
+  .habit-col[draggable] { cursor: grab; }
+  .drag-handle {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 9px;
+    line-height: 1;
+    color: var(--ink-faint);
+    opacity: 0.5;
+    letter-spacing: -2px;
+    pointer-events: none;
+  }
+  table.ledger thead th.habit-col:hover .drag-handle { opacity: 1; }
+  .habit-col.dragging { opacity: 0.4; }
+  .habit-col.drag-over { box-shadow: inset 2px 0 0 var(--accent-vibrant); background: var(--moss-soft); }
+
+  /* ---------- Modal dialogs ---------- */
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 42, 36, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+  }
+  .modal-card {
+    background: var(--paper-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    box-shadow: 0 16px 48px rgba(30, 42, 36, 0.28);
+    padding: 24px;
+    width: 100%;
+    max-width: 360px;
+  }
+  .modal-title {
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    margin: 0 0 10px;
+    color: var(--ink);
+  }
+  .modal-body {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 0 0 20px;
+    line-height: 1.5;
+  }
+  .modal-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .modal-fields .add-field input,
+  .modal-fields .add-field select {
+    width: 100%;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .btn-danger { background: var(--rust); color: var(--paper-elev); }
+  .btn-danger:hover { background: #863D31; }
+
+  table.ledger td {
+    padding: 10px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+    vertical-align: middle;
+  }
+
+  table.ledger tbody tr:last-child td { border-bottom: none; }
+  table.ledger tbody tr:hover { background: rgba(79,111,82,0.045); }
+
+  td.day-cell { white-space: nowrap; }
+  .day-name { font-weight: 600; }
+  .day-date { color: var(--ink-faint); font-size: 12px; }
+  tr.today td.day-cell .day-name::after {
+    content: "today";
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--moss);
+    background: var(--moss-soft);
+    padding: 2px 6px;
+    border-radius: var(--radius-md);
+    vertical-align: middle;
+  }
+
+  td.habit-cell { text-align: center; }
+
+  .check-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--line-strong);
+    background: var(--paper);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: transparent;
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  }
+  .check-btn:hover { border-color: var(--moss); }
+  .check-btn:active { transform: scale(0.92); }
+  .check-btn:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
+  .check-btn.checked {
+    background: var(--accent-vibrant);
+    border-color: var(--accent-vibrant-deep);
+    color: var(--paper-elev);
+  }
+
+  .num-input {
+    width: 68px;
+    text-align: center;
+    padding: 5px 4px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Work Sans', sans-serif;
+    font-size: 13px;
+  }
+  .num-input:focus { outline: 2px solid var(--moss); border-color: var(--moss); }
+
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    display: none;
+    -webkit-appearance: none;
+  }
+
+  .time-input {
+    width: 90px;
+    text-align: center;
+    padding: 5px 4px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Work Sans', sans-serif;
+    font-size: 13px;
+  }
+  .time-input:focus { outline: 2px solid var(--moss); border-color: var(--moss); }
+
+  td.score-cell {
+    text-align: center;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--moss-deep);
+  }
+
+  tfoot td {
+    padding: 12px 10px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    border-top: 2px solid var(--moss-deep);
+  }
+  tfoot td.habit-cell { text-align: center; }
+
+  /* ---------- Add habit ---------- */
+
+  .add-habit-col {
+    text-align: center;
+    vertical-align: middle;
+  }
+  .add-habit-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px dashed var(--line-strong);
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .add-habit-btn:hover { border-color: var(--moss); color: var(--moss-deep); }
+
+  .add-panel {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--paper-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .add-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .add-field input, .add-field select {
+    padding: 7px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    font-family: 'Work Sans', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .icon-field {
+    position: relative;
+  }
+  .emoji-trigger {
+    width: 42px;
+    height: 38px;
+    font-size: 18px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .emoji-trigger:hover { border-color: var(--moss); }
+  .emoji-picker {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 300px;
+    background: var(--paper-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 28px rgba(30, 42, 36, 0.2);
+    padding: 10px;
+    z-index: 30;
+  }
+  .emoji-search {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    font-family: 'Work Sans', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .emoji-option {
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 18px;
+    padding: 5px 0;
+    cursor: pointer;
+  }
+  .emoji-option:hover { background: var(--moss-soft); }
+  .emoji-empty {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    color: var(--ink-faint);
+    text-align: center;
+    padding: 12px 0;
+  }
+  .modal-fields .icon-field .emoji-custom-row input {
+    width: 40px;
+  }
+  .emoji-custom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .emoji-custom-row label {
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .emoji-custom-row input {
+    width: 40px;
+    text-align: center;
+    padding: 5px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    font-size: 15px;
+  }
+  .add-field input#new-habit-name { width: 160px; }
+
+  .time-target-fields {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-family: 'Work Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--moss-deep); color: var(--paper-elev); }
+  .btn-primary:hover { background: var(--moss); }
+  .btn-ghost { background: transparent; color: var(--ink-soft); }
+  .btn-ghost:hover { color: var(--ink); }
+
+  /* ---------- Stats ---------- */
+
+  .stats-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 0 0 14px;
+  }
+  .stats-head h2.section-heading {
+    margin: 0;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .stat-card {
+    background: var(--paper-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+  }
+  .stat-card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .stat-card-top .habit-icon { font-size: 15px; }
+  .stat-card-top .habit-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .stat-value {
+    font-family: 'Work Sans', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--moss-deep);
+    margin-bottom: 8px;
+  }
+  .bar-track {
+    height: 6px;
+    background: var(--line);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--accent-vibrant);
+    border-radius: var(--radius-sm);
+  }
+  .stat-subline {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
+  /* ---------- Footer controls ---------- */
+
+  .ledger-footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 28px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .footer-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .export-control {
+    position: relative;
+    display: inline-block;
+  }
+  .export-status {
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+
+  .loading-state {
+    padding: 60px 0;
+    text-align: center;
+    color: var(--ink-soft);
+    font-family: 'Work Sans', sans-serif;
+    font-size: 16px;
+  }
+
+  @media (max-width: 640px) {
+    .ledger-title { font-size: 26px; }
+    #app { padding: 26px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="loading-state">Opening your tracker&hellip;</div>
+</div>
+<input type="file" id="import-file-input" accept="application/json,.json" style="display:none">
+
+<script>
+(function(){
+  "use strict";
+
+  var CONFIG_KEY = "habit-ledger:config";
+
+  // Storage adapter: Claude artifact storage -> localStorage -> in-memory.
+  // Never throws synchronously; always returns promises.
+  var memStore = {};
+  var store = {
+    get: function(k){
+      try {
+        if (window.storage && typeof window.storage.get === "function") return Promise.resolve(window.storage.get(k));
+      } catch(e){}
+      try {
+        var v = window.localStorage.getItem(k);
+        return Promise.resolve(v === null ? null : { key:k, value:v });
+      } catch(e){}
+      return Promise.resolve(Object.prototype.hasOwnProperty.call(memStore,k) ? { key:k, value:memStore[k] } : null);
+    },
+    set: function(k,v){
+      try {
+        if (window.storage && typeof window.storage.set === "function") return Promise.resolve(window.storage.set(k,v));
+      } catch(e){}
+      try { window.localStorage.setItem(k,v); return Promise.resolve({ key:k, value:v }); } catch(e){}
+      memStore[k] = v;
+      return Promise.resolve({ key:k, value:v });
+    },
+    list: function(prefix){
+      try {
+        if (window.storage && typeof window.storage.list === "function") return Promise.resolve(window.storage.list(prefix));
+      } catch(e){}
+      var keys = [];
+      try {
+        for (var i = 0; i < window.localStorage.length; i++){
+          var kk = window.localStorage.key(i);
+          if (kk && kk.indexOf(prefix) === 0) keys.push(kk);
+        }
+      } catch(e){
+        Object.keys(memStore).forEach(function(kk){ if (kk.indexOf(prefix) === 0) keys.push(kk); });
+      }
+      return Promise.resolve({ keys: keys });
+    }
+  };
+  var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function monthKey(y,m){ return y + "-" + pad(m+1); }
+  function entriesKey(y,m){ return "habit-ledger:entries:" + monthKey(y,m); }
+  function dateKeyOf(y,m,d){ return y + "-" + pad(m+1) + "-" + pad(d); }
+  function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+  function uid(){ return "h" + Math.random().toString(36).slice(2,9); }
+
+  function timeToMinutes(t){
+    var parts = String(t).split(":");
+    if (parts.length !== 2) return null;
+    var h = Number(parts[0]), m = Number(parts[1]);
+    if (isNaN(h) || isNaN(m)) return null;
+    return h * 60 + m;
+  }
+  function minutesToTime(mins){
+    mins = ((Math.round(mins) % 1440) + 1440) % 1440;
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return pad(h) + ":" + pad(m);
+  }
+  function formatTime12(t){
+    var mins = timeToMinutes(t);
+    if (mins === null) return t;
+    var h = Math.floor(mins / 60), m = mins % 60;
+    var period = h >= 12 ? "PM" : "AM";
+    var h12 = h % 12; if (h12 === 0) h12 = 12;
+    return h12 + ":" + pad(m) + " " + period;
+  }
+  function circularMeanMinutes(minsArray){
+    // Treats the 24-hour clock as a circle so times that cross midnight
+    // (e.g. 11:30 PM and 12:30 AM) average to ~midnight, not to noon.
+    var sumSin = 0, sumCos = 0;
+    minsArray.forEach(function(m){
+      var angle = (m / 1440) * 2 * Math.PI;
+      sumSin += Math.sin(angle);
+      sumCos += Math.cos(angle);
+    });
+    var meanAngle = Math.atan2(sumSin / minsArray.length, sumCos / minsArray.length);
+    if (meanAngle < 0) meanAngle += 2 * Math.PI;
+    return (meanAngle / (2 * Math.PI)) * 1440;
+  }
+
+  // ---------- calendar color scale ----------
+  // One color per possible daily score (0 habits met, 1 habit met, ... up to
+  // the max). Fully customizable per score, rather than bucketed into a
+  // fixed number of bands - this is what keeps every score visually distinct
+  // no matter how many habits are being tracked.
+
+  function hexToRgb(hex){
+    var h = hex.replace("#", "");
+    if (h.length === 3) h = h.split("").map(function(c){ return c + c; }).join("");
+    var num = parseInt(h, 16);
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+
+  function rgbToHex(r, g, b){
+    return "#" + [r, g, b].map(function(v){
+      return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+    }).join("");
+  }
+
+  function relativeLuminance(hex){
+    var rgb = hexToRgb(hex);
+    var a = [rgb.r, rgb.g, rgb.b].map(function(v){
+      v = v / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+  }
+
+  function textColorFor(bgHex){
+    return relativeLuminance(bgHex) > 0.55 ? "var(--ink)" : "var(--paper-elev)";
+  }
+
+  function hslToRgb(h, s, l){
+    s /= 100; l /= 100;
+    var c = (1 - Math.abs(2*l - 1)) * s;
+    var x = c * (1 - Math.abs((h/60) % 2 - 1));
+    var m = l - c/2;
+    var r,g,b;
+    if (h < 60){ r=c; g=x; b=0; }
+    else if (h < 120){ r=x; g=c; b=0; }
+    else if (h < 180){ r=0; g=c; b=x; }
+    else if (h < 240){ r=0; g=x; b=c; }
+    else if (h < 300){ r=x; g=0; b=c; }
+    else { r=c; g=0; b=x; }
+    return [(r+m)*255, (g+m)*255, (b+m)*255];
+  }
+
+  function defaultColorScale(n){
+    // Interpolating raw RGB between two muted colors just produces more
+    // muted colors in between (low saturation reads as grey). Holding a
+    // fixed green hue and ramping saturation + lightness instead keeps
+    // every step recognizably green.
+    var GREEN_HUE = 138;
+    if (n <= 1) return [rgbToHex.apply(null, hslToRgb(GREEN_HUE, 12, 91))];
+    var colors = [];
+    for (var i = 0; i < n; i++){
+      var t = i / (n - 1);
+      var lightness = 91 - (91 - 24) * t;
+      var saturation = 14 + (48 - 14) * t;
+      colors.push(rgbToHex.apply(null, hslToRgb(GREEN_HUE, saturation, lightness)));
+    }
+    return colors;
+  }
+
+  // Pure computation, no persistence - used when we need a snapshot of the
+  // color scale for a given max without triggering a save as a side effect.
+  function computeScoreColorsFor(max){
+    var need = max + 1;
+    var existing = state.config.scoreColors || [];
+    if (existing.length === need) return existing;
+    var fresh = defaultColorScale(need);
+    for (var i = 0; i < Math.min(existing.length, need); i++){ fresh[i] = existing[i]; }
+    return fresh;
+  }
+
+  function getScoreColors(){
+    var fresh = computeScoreColorsFor(maxScore());
+    if (!state.config.scoreColors || state.config.scoreColors.length !== fresh.length){
+      state.config = Object.assign({}, state.config, { scoreColors: fresh });
+      saveConfig();
+    }
+    return fresh;
+  }
+
+  function colorForScore(score){
+    var colors = getScoreColors();
+    return colors[Math.max(0, Math.min(score, colors.length - 1))];
+  }
+
+  var EMOJI_LIBRARY = [
+    ["#️⃣","hash symbols keycap"],
+    ["*️⃣","keycap star symbols keycap"],
+    ["0️⃣","zero symbols keycap"],
+    ["1️⃣","one symbols keycap"],
+    ["2️⃣","two symbols keycap"],
+    ["3️⃣","three symbols keycap"],
+    ["4️⃣","four symbols keycap"],
+    ["5️⃣","five symbols keycap"],
+    ["6️⃣","six symbols keycap"],
+    ["7️⃣","seven symbols keycap"],
+    ["8️⃣","eight symbols keycap"],
+    ["9️⃣","nine symbols keycap"],
+    ["©️","copyright symbols other symbol"],
+    ["®️","registered symbols other symbol"],
+    ["🀄","mahjong activities game"],
+    ["🃏","black joker activities game"],
+    ["🅰️","a symbols alphanum"],
+    ["🅱️","b symbols alphanum"],
+    ["🅾️","o2 symbols alphanum"],
+    ["🅿️","parking symbols alphanum"],
+    ["🆎","ab symbols alphanum"],
+    ["🆑","cl symbols alphanum"],
+    ["🆒","cool symbols alphanum"],
+    ["🆓","free symbols alphanum"],
+    ["🆔","id symbols alphanum"],
+    ["🆕","new symbols alphanum"],
+    ["🆖","ng symbols alphanum"],
+    ["🆗","ok symbols alphanum"],
+    ["🆘","sos symbols alphanum"],
+    ["🆙","up symbols alphanum"],
+    ["🆚","vs symbols alphanum"],
+    ["🇦🇨","flag ac flags country flag"],
+    ["🇦🇩","flag ad flags country flag"],
+    ["🇦🇪","flag ae flags country flag"],
+    ["🇦🇫","flag af flags country flag"],
+    ["🇦🇬","flag ag flags country flag"],
+    ["🇦🇮","flag ai flags country flag"],
+    ["🇦🇱","flag al flags country flag"],
+    ["🇦🇲","flag am flags country flag"],
+    ["🇦🇴","flag ao flags country flag"],
+    ["🇦🇶","flag aq flags country flag"],
+    ["🇦🇷","flag ar flags country flag"],
+    ["🇦🇸","flag as flags country flag"],
+    ["🇦🇹","flag at flags country flag"],
+    ["🇦🇺","flag au flags country flag"],
+    ["🇦🇼","flag aw flags country flag"],
+    ["🇦🇽","flag ax flags country flag"],
+    ["🇦🇿","flag az flags country flag"],
+    ["🇧🇦","flag ba flags country flag"],
+    ["🇧🇧","flag bb flags country flag"],
+    ["🇧🇩","flag bd flags country flag"],
+    ["🇧🇪","flag be flags country flag"],
+    ["🇧🇫","flag bf flags country flag"],
+    ["🇧🇬","flag bg flags country flag"],
+    ["🇧🇭","flag bh flags country flag"],
+    ["🇧🇮","flag bi flags country flag"],
+    ["🇧🇯","flag bj flags country flag"],
+    ["🇧🇱","flag bl flags country flag"],
+    ["🇧🇲","flag bm flags country flag"],
+    ["🇧🇳","flag bn flags country flag"],
+    ["🇧🇴","flag bo flags country flag"],
+    ["🇧🇶","flag bq flags country flag"],
+    ["🇧🇷","flag br flags country flag"],
+    ["🇧🇸","flag bs flags country flag"],
+    ["🇧🇹","flag bt flags country flag"],
+    ["🇧🇻","flag bv flags country flag"],
+    ["🇧🇼","flag bw flags country flag"],
+    ["🇧🇾","flag by flags country flag"],
+    ["🇧🇿","flag bz flags country flag"],
+    ["🇨🇦","flag ca flags country flag"],
+    ["🇨🇨","flag cc flags country flag"],
+    ["🇨🇩","flag cd flags country flag"],
+    ["🇨🇫","flag cf flags country flag"],
+    ["🇨🇬","flag cg flags country flag"],
+    ["🇨🇭","flag ch flags country flag"],
+    ["🇨🇮","flag ci flags country flag"],
+    ["🇨🇰","flag ck flags country flag"],
+    ["🇨🇱","flag cl flags country flag"],
+    ["🇨🇲","flag cm flags country flag"],
+    ["🇨🇳","cn flag cn flags country flag"],
+    ["🇨🇴","flag co flags country flag"],
+    ["🇨🇵","flag cp flags country flag"],
+    ["🇨🇶","flag sark flags country flag"],
+    ["🇨🇷","flag cr flags country flag"],
+    ["🇨🇺","flag cu flags country flag"],
+    ["🇨🇻","flag cv flags country flag"],
+    ["🇨🇼","flag cw flags country flag"],
+    ["🇨🇽","flag cx flags country flag"],
+    ["🇨🇾","flag cy flags country flag"],
+    ["🇨🇿","flag cz flags country flag"],
+    ["🇩🇪","de flag de flags country flag"],
+    ["🇩🇬","flag dg flags country flag"],
+    ["🇩🇯","flag dj flags country flag"],
+    ["🇩🇰","flag dk flags country flag"],
+    ["🇩🇲","flag dm flags country flag"],
+    ["🇩🇴","flag do flags country flag"],
+    ["🇩🇿","flag dz flags country flag"],
+    ["🇪🇦","flag ea flags country flag"],
+    ["🇪🇨","flag ec flags country flag"],
+    ["🇪🇪","flag ee flags country flag"],
+    ["🇪🇬","flag eg flags country flag"],
+    ["🇪🇭","flag eh flags country flag"],
+    ["🇪🇷","flag er flags country flag"],
+    ["🇪🇸","es flag es flags country flag"],
+    ["🇪🇹","flag et flags country flag"],
+    ["🇪🇺","flag eu flags country flag"],
+    ["🇫🇮","flag fi flags country flag"],
+    ["🇫🇯","flag fj flags country flag"],
+    ["🇫🇰","flag fk flags country flag"],
+    ["🇫🇲","flag fm flags country flag"],
+    ["🇫🇴","flag fo flags country flag"],
+    ["🇫🇷","fr flag fr flags country flag"],
+    ["🇬🇦","flag ga flags country flag"],
+    ["🇬🇧","gb uk flag gb flags country flag"],
+    ["🇬🇩","flag gd flags country flag"],
+    ["🇬🇪","flag ge flags country flag"],
+    ["🇬🇫","flag gf flags country flag"],
+    ["🇬🇬","flag gg flags country flag"],
+    ["🇬🇭","flag gh flags country flag"],
+    ["🇬🇮","flag gi flags country flag"],
+    ["🇬🇱","flag gl flags country flag"],
+    ["🇬🇲","flag gm flags country flag"],
+    ["🇬🇳","flag gn flags country flag"],
+    ["🇬🇵","flag gp flags country flag"],
+    ["🇬🇶","flag gq flags country flag"],
+    ["🇬🇷","flag gr flags country flag"],
+    ["🇬🇸","flag gs flags country flag"],
+    ["🇬🇹","flag gt flags country flag"],
+    ["🇬🇺","flag gu flags country flag"],
+    ["🇬🇼","flag gw flags country flag"],
+    ["🇬🇾","flag gy flags country flag"],
+    ["🇭🇰","flag hk flags country flag"],
+    ["🇭🇲","flag hm flags country flag"],
+    ["🇭🇳","flag hn flags country flag"],
+    ["🇭🇷","flag hr flags country flag"],
+    ["🇭🇹","flag ht flags country flag"],
+    ["🇭🇺","flag hu flags country flag"],
+    ["🇮🇨","flag ic flags country flag"],
+    ["🇮🇩","flag id flags country flag"],
+    ["🇮🇪","flag ie flags country flag"],
+    ["🇮🇱","flag il flags country flag"],
+    ["🇮🇲","flag im flags country flag"],
+    ["🇮🇳","flag in flags country flag"],
+    ["🇮🇴","flag io flags country flag"],
+    ["🇮🇶","flag iq flags country flag"],
+    ["🇮🇷","flag ir flags country flag"],
+    ["🇮🇸","flag is flags country flag"],
+    ["🇮🇹","it flag it flags country flag"],
+    ["🇯🇪","flag je flags country flag"],
+    ["🇯🇲","flag jm flags country flag"],
+    ["🇯🇴","flag jo flags country flag"],
+    ["🇯🇵","jp flag jp flags country flag"],
+    ["🇰🇪","flag ke flags country flag"],
+    ["🇰🇬","flag kg flags country flag"],
+    ["🇰🇭","flag kh flags country flag"],
+    ["🇰🇮","flag ki flags country flag"],
+    ["🇰🇲","flag km flags country flag"],
+    ["🇰🇳","flag kn flags country flag"],
+    ["🇰🇵","flag kp flags country flag"],
+    ["🇰🇷","kr flag kr flags country flag"],
+    ["🇰🇼","flag kw flags country flag"],
+    ["🇰🇾","flag ky flags country flag"],
+    ["🇰🇿","flag kz flags country flag"],
+    ["🇱🇦","flag la flags country flag"],
+    ["🇱🇧","flag lb flags country flag"],
+    ["🇱🇨","flag lc flags country flag"],
+    ["🇱🇮","flag li flags country flag"],
+    ["🇱🇰","flag lk flags country flag"],
+    ["🇱🇷","flag lr flags country flag"],
+    ["🇱🇸","flag ls flags country flag"],
+    ["🇱🇹","flag lt flags country flag"],
+    ["🇱🇺","flag lu flags country flag"],
+    ["🇱🇻","flag lv flags country flag"],
+    ["🇱🇾","flag ly flags country flag"],
+    ["🇲🇦","flag ma flags country flag"],
+    ["🇲🇨","flag mc flags country flag"],
+    ["🇲🇩","flag md flags country flag"],
+    ["🇲🇪","flag me flags country flag"],
+    ["🇲🇫","flag mf flags country flag"],
+    ["🇲🇬","flag mg flags country flag"],
+    ["🇲🇭","flag mh flags country flag"],
+    ["🇲🇰","flag mk flags country flag"],
+    ["🇲🇱","flag ml flags country flag"],
+    ["🇲🇲","flag mm flags country flag"],
+    ["🇲🇳","flag mn flags country flag"],
+    ["🇲🇴","flag mo flags country flag"],
+    ["🇲🇵","flag mp flags country flag"],
+    ["🇲🇶","flag mq flags country flag"],
+    ["🇲🇷","flag mr flags country flag"],
+    ["🇲🇸","flag ms flags country flag"],
+    ["🇲🇹","flag mt flags country flag"],
+    ["🇲🇺","flag mu flags country flag"],
+    ["🇲🇻","flag mv flags country flag"],
+    ["🇲🇼","flag mw flags country flag"],
+    ["🇲🇽","flag mx flags country flag"],
+    ["🇲🇾","flag my flags country flag"],
+    ["🇲🇿","flag mz flags country flag"],
+    ["🇳🇦","flag na flags country flag"],
+    ["🇳🇨","flag nc flags country flag"],
+    ["🇳🇪","flag ne flags country flag"],
+    ["🇳🇫","flag nf flags country flag"],
+    ["🇳🇬","flag ng flags country flag"],
+    ["🇳🇮","flag ni flags country flag"],
+    ["🇳🇱","flag nl flags country flag"],
+    ["🇳🇴","flag no flags country flag"],
+    ["🇳🇵","flag np flags country flag"],
+    ["🇳🇷","flag nr flags country flag"],
+    ["🇳🇺","flag nu flags country flag"],
+    ["🇳🇿","flag nz flags country flag"],
+    ["🇴🇲","flag om flags country flag"],
+    ["🇵🇦","flag pa flags country flag"],
+    ["🇵🇪","flag pe flags country flag"],
+    ["🇵🇫","flag pf flags country flag"],
+    ["🇵🇬","flag pg flags country flag"],
+    ["🇵🇭","flag ph flags country flag"],
+    ["🇵🇰","flag pk flags country flag"],
+    ["🇵🇱","flag pl flags country flag"],
+    ["🇵🇲","flag pm flags country flag"],
+    ["🇵🇳","flag pn flags country flag"],
+    ["🇵🇷","flag pr flags country flag"],
+    ["🇵🇸","flag ps flags country flag"],
+    ["🇵🇹","flag pt flags country flag"],
+    ["🇵🇼","flag pw flags country flag"],
+    ["🇵🇾","flag py flags country flag"],
+    ["🇶🇦","flag qa flags country flag"],
+    ["🇷🇪","flag re flags country flag"],
+    ["🇷🇴","flag ro flags country flag"],
+    ["🇷🇸","flag rs flags country flag"],
+    ["🇷🇺","ru flag ru flags country flag"],
+    ["🇷🇼","flag rw flags country flag"],
+    ["🇸🇦","flag sa flags country flag"],
+    ["🇸🇧","flag sb flags country flag"],
+    ["🇸🇨","flag sc flags country flag"],
+    ["🇸🇩","flag sd flags country flag"],
+    ["🇸🇪","flag se flags country flag"],
+    ["🇸🇬","flag sg flags country flag"],
+    ["🇸🇭","flag sh flags country flag"],
+    ["🇸🇮","flag si flags country flag"],
+    ["🇸🇯","flag sj flags country flag"],
+    ["🇸🇰","flag sk flags country flag"],
+    ["🇸🇱","flag sl flags country flag"],
+    ["🇸🇲","flag sm flags country flag"],
+    ["🇸🇳","flag sn flags country flag"],
+    ["🇸🇴","flag so flags country flag"],
+    ["🇸🇷","flag sr flags country flag"],
+    ["🇸🇸","flag ss flags country flag"],
+    ["🇸🇹","flag st flags country flag"],
+    ["🇸🇻","flag sv flags country flag"],
+    ["🇸🇽","flag sx flags country flag"],
+    ["🇸🇾","flag sy flags country flag"],
+    ["🇸🇿","flag sz flags country flag"],
+    ["🇹🇦","flag ta flags country flag"],
+    ["🇹🇨","flag tc flags country flag"],
+    ["🇹🇩","flag td flags country flag"],
+    ["🇹🇫","flag tf flags country flag"],
+    ["🇹🇬","flag tg flags country flag"],
+    ["🇹🇭","flag th flags country flag"],
+    ["🇹🇯","flag tj flags country flag"],
+    ["🇹🇰","flag tk flags country flag"],
+    ["🇹🇱","flag tl flags country flag"],
+    ["🇹🇲","flag tm flags country flag"],
+    ["🇹🇳","flag tn flags country flag"],
+    ["🇹🇴","flag to flags country flag"],
+    ["🇹🇷","flag tr flags country flag"],
+    ["🇹🇹","flag tt flags country flag"],
+    ["🇹🇻","flag tv flags country flag"],
+    ["🇹🇼","flag tw flags country flag"],
+    ["🇹🇿","flag tz flags country flag"],
+    ["🇺🇦","flag ua flags country flag"],
+    ["🇺🇬","flag ug flags country flag"],
+    ["🇺🇲","flag um flags country flag"],
+    ["🇺🇳","flag un flags country flag"],
+    ["🇺🇸","us flag us flags country flag"],
+    ["🇺🇾","flag uy flags country flag"],
+    ["🇺🇿","flag uz flags country flag"],
+    ["🇻🇦","flag va flags country flag"],
+    ["🇻🇨","flag vc flags country flag"],
+    ["🇻🇪","flag ve flags country flag"],
+    ["🇻🇬","flag vg flags country flag"],
+    ["🇻🇮","flag vi flags country flag"],
+    ["🇻🇳","flag vn flags country flag"],
+    ["🇻🇺","flag vu flags country flag"],
+    ["🇼🇫","flag wf flags country flag"],
+    ["🇼🇸","flag ws flags country flag"],
+    ["🇽🇰","flag xk flags country flag"],
+    ["🇾🇪","flag ye flags country flag"],
+    ["🇾🇹","flag yt flags country flag"],
+    ["🇿🇦","flag za flags country flag"],
+    ["🇿🇲","flag zm flags country flag"],
+    ["🇿🇼","flag zw flags country flag"],
+    ["🈁","koko symbols alphanum"],
+    ["🈂️","sa symbols alphanum"],
+    ["🈚","u7121 symbols alphanum"],
+    ["🈯","u6307 symbols alphanum"],
+    ["🈲","u7981 symbols alphanum"],
+    ["🈳","u7a7a symbols alphanum"],
+    ["🈴","u5408 symbols alphanum"],
+    ["🈵","u6e80 symbols alphanum"],
+    ["🈶","u6709 symbols alphanum"],
+    ["🈷️","u6708 symbols alphanum"],
+    ["🈸","u7533 symbols alphanum"],
+    ["🈹","u5272 symbols alphanum"],
+    ["🈺","u55b6 symbols alphanum"],
+    ["🉐","ideograph advantage symbols alphanum"],
+    ["🉑","accept symbols alphanum"],
+    ["🌀","cyclone travel places sky weather"],
+    ["🌁","foggy travel places place other"],
+    ["🌂","closed umbrella travel places sky weather"],
+    ["🌃","night with stars travel places place other"],
+    ["🌄","sunrise over mountains travel places place other"],
+    ["🌅","sunrise travel places place other"],
+    ["🌆","city sunset travel places place other"],
+    ["🌇","city sunrise travel places place other"],
+    ["🌈","rainbow travel places sky weather"],
+    ["🌉","bridge at night travel places place other"],
+    ["🌊","ocean travel places sky weather"],
+    ["🌋","volcano travel places place geographic"],
+    ["🌌","milky way travel places sky weather"],
+    ["🌍","earth africa travel places place map"],
+    ["🌎","earth americas travel places place map"],
+    ["🌏","earth asia travel places place map"],
+    ["🌐","globe with meridians travel places place map"],
+    ["🌑","new moon travel places sky weather"],
+    ["🌒","waxing crescent moon travel places sky weather"],
+    ["🌓","first quarter moon travel places sky weather"],
+    ["🌔","moon waxing gibbous moon travel places sky weather"],
+    ["🌕","full moon travel places sky weather"],
+    ["🌖","waning gibbous moon travel places sky weather"],
+    ["🌗","last quarter moon travel places sky weather"],
+    ["🌘","waning crescent moon travel places sky weather"],
+    ["🌙","crescent moon travel places sky weather"],
+    ["🌚","new moon with face travel places sky weather"],
+    ["🌛","first quarter moon with face travel places sky weather"],
+    ["🌜","last quarter moon with face travel places sky weather"],
+    ["🌝","full moon with face travel places sky weather"],
+    ["🌞","sun with face travel places sky weather"],
+    ["🌟","star2 travel places sky weather"],
+    ["🌠","stars travel places sky weather"],
+    ["🌡️","thermometer travel places sky weather"],
+    ["🌤️","mostly sunny sun small cloud travel places sky weather"],
+    ["🌥️","barely sunny sun behind cloud travel places sky weather"],
+    ["🌦️","partly sunny rain sun behind rain cloud travel places sky weather"],
+    ["🌧️","rain cloud travel places sky weather"],
+    ["🌨️","snow cloud travel places sky weather"],
+    ["🌩️","lightning lightning cloud travel places sky weather"],
+    ["🌪️","tornado tornado cloud travel places sky weather"],
+    ["🌫️","fog travel places sky weather"],
+    ["🌬️","wind blowing face travel places sky weather"],
+    ["🌭","hotdog food drink food prepared"],
+    ["🌮","taco food drink food prepared"],
+    ["🌯","burrito food drink food prepared"],
+    ["🌰","chestnut food drink food vegetable"],
+    ["🌱","seedling animals nature plant other habit new start"],
+    ["🌲","evergreen tree animals nature plant other"],
+    ["🌳","deciduous tree animals nature plant other"],
+    ["🌴","palm tree animals nature plant other"],
+    ["🌵","cactus animals nature plant other"],
+    ["🌶️","hot pepper food drink food vegetable"],
+    ["🌷","tulip animals nature plant flower"],
+    ["🌸","cherry blossom animals nature plant flower"],
+    ["🌹","rose animals nature plant flower"],
+    ["🌺","hibiscus animals nature plant flower"],
+    ["🌻","sunflower animals nature plant flower"],
+    ["🌼","blossom animals nature plant flower"],
+    ["🌽","corn food drink food vegetable"],
+    ["🌾","ear of rice animals nature plant other"],
+    ["🌿","herb animals nature plant other"],
+    ["🍀","four leaf clover animals nature plant other"],
+    ["🍁","maple leaf animals nature plant other"],
+    ["🍂","fallen leaf animals nature plant other"],
+    ["🍃","leaves animals nature plant other"],
+    ["🍄‍🟫","brown mushroom food drink food vegetable"],
+    ["🍄","mushroom animals nature plant other"],
+    ["🍅","tomato food drink food fruit"],
+    ["🍆","eggplant food drink food vegetable"],
+    ["🍇","grapes food drink food fruit"],
+    ["🍈","melon food drink food fruit"],
+    ["🍉","watermelon food drink food fruit"],
+    ["🍊","tangerine food drink food fruit"],
+    ["🍋‍🟩","lime food drink food fruit"],
+    ["🍋","lemon food drink food fruit"],
+    ["🍌","banana food drink food fruit"],
+    ["🍍","pineapple food drink food fruit"],
+    ["🍎","apple food drink food fruit"],
+    ["🍏","green apple food drink food fruit"],
+    ["🍐","pear food drink food fruit"],
+    ["🍑","peach food drink food fruit"],
+    ["🍒","cherries food drink food fruit"],
+    ["🍓","strawberry food drink food fruit"],
+    ["🍔","hamburger food drink food prepared"],
+    ["🍕","pizza food drink food prepared"],
+    ["🍖","meat on bone food drink food prepared"],
+    ["🍗","poultry leg food drink food prepared"],
+    ["🍘","rice cracker food drink food asian"],
+    ["🍙","rice ball food drink food asian"],
+    ["🍚","rice food drink food asian"],
+    ["🍛","curry food drink food asian"],
+    ["🍜","ramen food drink food asian"],
+    ["🍝","spaghetti food drink food asian"],
+    ["🍞","bread food drink food prepared"],
+    ["🍟","fries food drink food prepared"],
+    ["🍠","sweet potato food drink food asian"],
+    ["🍡","dango food drink food asian"],
+    ["🍢","oden food drink food asian"],
+    ["🍣","sushi food drink food asian"],
+    ["🍤","fried shrimp food drink food asian"],
+    ["🍥","fish cake food drink food asian"],
+    ["🍦","icecream food drink food sweet"],
+    ["🍧","shaved ice food drink food sweet"],
+    ["🍨","ice cream food drink food sweet"],
+    ["🍩","doughnut food drink food sweet"],
+    ["🍪","cookie food drink food sweet"],
+    ["🍫","chocolate bar food drink food sweet"],
+    ["🍬","candy food drink food sweet"],
+    ["🍭","lollipop food drink food sweet"],
+    ["🍮","custard food drink food sweet"],
+    ["🍯","honey pot food drink food sweet"],
+    ["🍰","cake food drink food sweet"],
+    ["🍱","bento food drink food asian"],
+    ["🍲","stew food drink food prepared"],
+    ["🍳","fried egg cooking food drink food prepared"],
+    ["🍴","fork and knife food drink dishware"],
+    ["🍵","tea food drink drink"],
+    ["🍶","sake food drink drink"],
+    ["🍷","wine glass food drink drink"],
+    ["🍸","cocktail food drink drink"],
+    ["🍹","tropical drink food drink drink"],
+    ["🍺","beer food drink drink"],
+    ["🍻","beers food drink drink"],
+    ["🍼","baby bottle food drink drink"],
+    ["🍽️","knife fork plate food drink dishware"],
+    ["🍾","champagne food drink drink"],
+    ["🍿","popcorn food drink food prepared"],
+    ["🎀","ribbon activities event"],
+    ["🎁","gift activities event"],
+    ["🎂","birthday food drink food sweet"],
+    ["🎃","jack o lantern activities event"],
+    ["🎄","christmas tree activities event"],
+    ["🎅","santa people body person fantasy"],
+    ["🎆","fireworks activities event"],
+    ["🎇","sparkler activities event"],
+    ["🎈","balloon activities event"],
+    ["🎉","tada activities event"],
+    ["🎊","confetti ball activities event"],
+    ["🎋","tanabata tree activities event"],
+    ["🎌","crossed flags flags flag"],
+    ["🎍","bamboo activities event"],
+    ["🎎","dolls activities event"],
+    ["🎏","flags activities event"],
+    ["🎐","wind chime activities event"],
+    ["🎑","rice scene activities event"],
+    ["🎒","school satchel objects clothing"],
+    ["🎓","mortar board objects clothing study learn"],
+    ["🎖️","medal activities award medal"],
+    ["🎗️","reminder ribbon activities event"],
+    ["🎙️","studio microphone objects music"],
+    ["🎚️","level slider objects music"],
+    ["🎛️","control knobs objects music"],
+    ["🎞️","film frames objects light video"],
+    ["🎟️","admission tickets activities event"],
+    ["🎠","carousel horse travel places place other"],
+    ["🎡","ferris wheel travel places place other"],
+    ["🎢","roller coaster travel places place other"],
+    ["🎣","fishing pole and fish activities sport"],
+    ["🎤","microphone objects music"],
+    ["🎥","movie camera objects light video"],
+    ["🎦","cinema symbols av symbol"],
+    ["🎧","headphones objects music"],
+    ["🎨","art activities arts crafts"],
+    ["🎩","tophat objects clothing"],
+    ["🎪","circus tent travel places place other"],
+    ["🎫","ticket activities event"],
+    ["🎬","clapper objects light video"],
+    ["🎭","performing arts activities arts crafts"],
+    ["🎮","video game activities game"],
+    ["🎯","dart activities game habit goal"],
+    ["🎰","slot machine activities game"],
+    ["🎱","8ball activities game"],
+    ["🎲","game die activities game"],
+    ["🎳","bowling activities sport"],
+    ["🎴","flower playing cards activities game"],
+    ["🎵","musical note objects music"],
+    ["🎶","notes objects music"],
+    ["🎷","saxophone objects musical instrument"],
+    ["🎸","guitar objects musical instrument"],
+    ["🎹","musical keyboard objects musical instrument"],
+    ["🎺","trumpet objects musical instrument"],
+    ["🎻","violin objects musical instrument"],
+    ["🎼","musical score objects music"],
+    ["🎽","running shirt with sash activities sport"],
+    ["🎾","tennis activities sport"],
+    ["🎿","ski activities sport"],
+    ["🏀","basketball activities sport"],
+    ["🏁","checkered flag flags flag"],
+    ["🏂","snowboarder people body person sport"],
+    ["🏃‍♀️","woman running people body person activity"],
+    ["🏃‍♀️‍➡️","woman running facing right people body person activity"],
+    ["🏃‍♂️","man running people body person activity"],
+    ["🏃‍♂️‍➡️","man running facing right people body person activity"],
+    ["🏃‍➡️","person running facing right people body person activity"],
+    ["🏃","runner running people body person activity exercise workout"],
+    ["🏄‍♀️","woman surfing people body person sport"],
+    ["🏄‍♂️","man surfing people body person sport"],
+    ["🏄","surfer people body person sport"],
+    ["🏅","sports medal activities award medal"],
+    ["🏆","trophy activities award medal habit achievement"],
+    ["🏇","horse racing people body person sport"],
+    ["🏈","football activities sport"],
+    ["🏉","rugby football activities sport"],
+    ["🏊‍♀️","woman swimming people body person sport"],
+    ["🏊‍♂️","man swimming people body person sport"],
+    ["🏊","swimmer people body person sport exercise workout"],
+    ["🏋️‍♀️","woman lifting weights people body person sport exercise workout"],
+    ["🏋️‍♂️","man lifting weights people body person sport exercise workout"],
+    ["🏋️","weight lifter people body person sport exercise workout"],
+    ["🏌️‍♀️","woman golfing people body person sport"],
+    ["🏌️‍♂️","man golfing people body person sport"],
+    ["🏌️","golfer people body person sport"],
+    ["🏍️","racing motorcycle travel places transport ground"],
+    ["🏎️","racing car travel places transport ground"],
+    ["🏏","cricket bat and ball activities sport"],
+    ["🏐","volleyball activities sport"],
+    ["🏑","field hockey stick and ball activities sport"],
+    ["🏒","ice hockey stick and puck activities sport"],
+    ["🏓","table tennis paddle and ball activities sport"],
+    ["🏔️","snow capped mountain travel places place geographic"],
+    ["🏕️","camping travel places place geographic"],
+    ["🏖️","beach with umbrella travel places place geographic"],
+    ["🏗️","building construction travel places place building"],
+    ["🏘️","house buildings travel places place building"],
+    ["🏙️","cityscape travel places place other"],
+    ["🏚️","derelict house building travel places place building"],
+    ["🏛️","classical building travel places place building"],
+    ["🏜️","desert travel places place geographic"],
+    ["🏝️","desert island travel places place geographic"],
+    ["🏞️","national park travel places place geographic"],
+    ["🏟️","stadium travel places place building"],
+    ["🏠","house travel places place building"],
+    ["🏡","house with garden travel places place building"],
+    ["🏢","office travel places place building"],
+    ["🏣","post office travel places place building"],
+    ["🏤","european post office travel places place building"],
+    ["🏥","hospital travel places place building"],
+    ["🏦","bank travel places place building budget save"],
+    ["🏧","atm symbols transport sign"],
+    ["🏨","hotel travel places place building"],
+    ["🏩","love hotel travel places place building"],
+    ["🏪","convenience store travel places place building"],
+    ["🏫","school travel places place building"],
+    ["🏬","department store travel places place building"],
+    ["🏭","factory travel places place building"],
+    ["🏮","izakaya lantern lantern objects light video"],
+    ["🏯","japanese castle travel places place building"],
+    ["🏰","european castle travel places place building"],
+    ["🏳️‍🌈","rainbow flag flags flag"],
+    ["🏳️‍⚧️","transgender flag flags flag"],
+    ["🏳️","waving white flag flags flag"],
+    ["🏴‍☠️","pirate flag flags flag"],
+    ["🏴󠁧󠁢󠁥󠁮󠁧󠁿","flag england flags subdivision flag"],
+    ["🏴󠁧󠁢󠁳󠁣󠁴󠁿","flag scotland flags subdivision flag"],
+    ["🏴󠁧󠁢󠁷󠁬󠁳󠁿","flag wales flags subdivision flag"],
+    ["🏴","waving black flag flags flag"],
+    ["🏵️","rosette animals nature plant flower"],
+    ["🏷️","label objects book paper"],
+    ["🏸","badminton racquet and shuttlecock activities sport"],
+    ["🏹","bow and arrow objects tool"],
+    ["🏺","amphora food drink dishware"],
+    ["🐀","rat animals nature animal mammal"],
+    ["🐁","mouse2 animals nature animal mammal"],
+    ["🐂","ox animals nature animal mammal"],
+    ["🐃","water buffalo animals nature animal mammal"],
+    ["🐄","cow2 animals nature animal mammal"],
+    ["🐅","tiger2 animals nature animal mammal"],
+    ["🐆","leopard animals nature animal mammal"],
+    ["🐇","rabbit2 animals nature animal mammal"],
+    ["🐈‍⬛","black cat animals nature animal mammal"],
+    ["🐈","cat2 animals nature animal mammal"],
+    ["🐉","dragon animals nature animal reptile"],
+    ["🐊","crocodile animals nature animal reptile"],
+    ["🐋","whale2 animals nature animal marine"],
+    ["🐌","snail animals nature animal bug"],
+    ["🐍","snake animals nature animal reptile"],
+    ["🐎","racehorse animals nature animal mammal"],
+    ["🐏","ram animals nature animal mammal"],
+    ["🐐","goat animals nature animal mammal"],
+    ["🐑","sheep animals nature animal mammal"],
+    ["🐒","monkey animals nature animal mammal"],
+    ["🐓","rooster animals nature animal bird"],
+    ["🐔","chicken animals nature animal bird"],
+    ["🐕‍🦺","service dog animals nature animal mammal"],
+    ["🐕","dog2 animals nature animal mammal"],
+    ["🐖","pig2 animals nature animal mammal"],
+    ["🐗","boar animals nature animal mammal"],
+    ["🐘","elephant animals nature animal mammal"],
+    ["🐙","octopus animals nature animal marine"],
+    ["🐚","shell animals nature animal marine"],
+    ["🐛","bug animals nature animal bug"],
+    ["🐜","ant animals nature animal bug"],
+    ["🐝","bee honeybee animals nature animal bug"],
+    ["🐞","ladybug lady beetle animals nature animal bug"],
+    ["🐟","fish animals nature animal marine"],
+    ["🐠","tropical fish animals nature animal marine"],
+    ["🐡","blowfish animals nature animal marine"],
+    ["🐢","turtle animals nature animal reptile"],
+    ["🐣","hatching chick animals nature animal bird"],
+    ["🐤","baby chick animals nature animal bird"],
+    ["🐥","hatched chick animals nature animal bird"],
+    ["🐦‍🔥","phoenix animals nature animal bird"],
+    ["🐦‍⬛","black bird animals nature animal bird"],
+    ["🐦","bird animals nature animal bird"],
+    ["🐧","penguin animals nature animal bird"],
+    ["🐨","koala animals nature animal mammal"],
+    ["🐩","poodle animals nature animal mammal"],
+    ["🐪","dromedary camel animals nature animal mammal"],
+    ["🐫","camel animals nature animal mammal"],
+    ["🐬","dolphin flipper animals nature animal marine"],
+    ["🐭","mouse animals nature animal mammal"],
+    ["🐮","cow animals nature animal mammal"],
+    ["🐯","tiger animals nature animal mammal"],
+    ["🐰","rabbit animals nature animal mammal"],
+    ["🐱","cat animals nature animal mammal"],
+    ["🐲","dragon face animals nature animal reptile"],
+    ["🐳","whale animals nature animal marine"],
+    ["🐴","horse animals nature animal mammal"],
+    ["🐵","monkey face animals nature animal mammal"],
+    ["🐶","dog animals nature animal mammal"],
+    ["🐷","pig animals nature animal mammal"],
+    ["🐸","frog animals nature animal amphibian"],
+    ["🐹","hamster animals nature animal mammal"],
+    ["🐺","wolf animals nature animal mammal"],
+    ["🐻‍❄️","polar bear animals nature animal mammal"],
+    ["🐻","bear animals nature animal mammal"],
+    ["🐼","panda face animals nature animal mammal"],
+    ["🐽","pig nose animals nature animal mammal"],
+    ["🐾","feet paw prints animals nature animal mammal"],
+    ["🐿️","chipmunk animals nature animal mammal"],
+    ["👀","eyes people body body parts"],
+    ["👁️‍🗨️","eye in speech bubble smileys emotion emotion"],
+    ["👁️","eye people body body parts"],
+    ["👂","ear people body body parts"],
+    ["👃","nose people body body parts"],
+    ["👄","lips people body body parts"],
+    ["👅","tongue people body body parts"],
+    ["👆","point up 2 people body hand single finger"],
+    ["👇","point down people body hand single finger"],
+    ["👈","point left people body hand single finger"],
+    ["👉","point right people body hand single finger"],
+    ["👊","facepunch punch people body hand fingers closed"],
+    ["👋","wave people body hand fingers open"],
+    ["👌","ok hand people body hand fingers partial"],
+    ["👍","1 thumbsup people body hand fingers closed"],
+    ["👎","1 thumbsdown people body hand fingers closed"],
+    ["👏","clap people body hands"],
+    ["👐","open hands people body hands"],
+    ["👑","crown objects clothing"],
+    ["👒","womans hat objects clothing"],
+    ["👓","eyeglasses objects clothing"],
+    ["👔","necktie objects clothing"],
+    ["👕","shirt tshirt objects clothing"],
+    ["👖","jeans objects clothing"],
+    ["👗","dress objects clothing"],
+    ["👘","kimono objects clothing"],
+    ["👙","bikini objects clothing"],
+    ["👚","womans clothes objects clothing"],
+    ["👛","purse objects clothing"],
+    ["👜","handbag objects clothing"],
+    ["👝","pouch objects clothing"],
+    ["👞","mans shoe shoe objects clothing"],
+    ["👟","athletic shoe objects clothing"],
+    ["👠","high heel objects clothing"],
+    ["👡","sandal objects clothing"],
+    ["👢","boot objects clothing"],
+    ["👣","footprints people body person symbol"],
+    ["👤","bust in silhouette people body person symbol"],
+    ["👥","busts in silhouette people body person symbol"],
+    ["👦","boy people body person"],
+    ["👧","girl people body person"],
+    ["👨‍🌾","male farmer people body person role"],
+    ["👨‍🍳","male cook people body person role"],
+    ["👨‍🍼","man feeding baby people body person role"],
+    ["👨‍🎓","male student people body person role"],
+    ["👨‍🎤","male singer people body person role"],
+    ["👨‍🎨","male artist people body person role"],
+    ["👨‍🏫","male teacher people body person role"],
+    ["👨‍🏭","male factory worker people body person role"],
+    ["👨‍👦‍👦","man boy boy people body family"],
+    ["👨‍👦","man boy people body family"],
+    ["👨‍👧‍👦","man girl boy people body family"],
+    ["👨‍👧‍👧","man girl girl people body family"],
+    ["👨‍👧","man girl people body family"],
+    ["👨‍👨‍👦","man man boy people body family"],
+    ["👨‍👨‍👦‍👦","man man boy boy people body family"],
+    ["👨‍👨‍👧","man man girl people body family"],
+    ["👨‍👨‍👧‍👦","man man girl boy people body family"],
+    ["👨‍👨‍👧‍👧","man man girl girl people body family"],
+    ["👨‍👩‍👦","man woman boy people body family"],
+    ["👨‍👩‍👦‍👦","man woman boy boy people body family"],
+    ["👨‍👩‍👧","man woman girl people body family"],
+    ["👨‍👩‍👧‍👦","man woman girl boy people body family"],
+    ["👨‍👩‍👧‍👧","man woman girl girl people body family"],
+    ["👨‍💻","male technologist people body person role"],
+    ["👨‍💼","male office worker people body person role"],
+    ["👨‍🔧","male mechanic people body person role"],
+    ["👨‍🔬","male scientist people body person role"],
+    ["👨‍🚀","male astronaut people body person role"],
+    ["👨‍🚒","male firefighter people body person role"],
+    ["👨‍🦯‍➡️","man with white cane facing right people body person activity"],
+    ["👨‍🦯","man with probing cane people body person activity"],
+    ["👨‍🦰","red haired man people body person"],
+    ["👨‍🦱","curly haired man people body person"],
+    ["👨‍🦲","bald man people body person"],
+    ["👨‍🦳","white haired man people body person"],
+    ["👨‍🦼‍➡️","man in motorized wheelchair facing right people body person activity"],
+    ["👨‍🦼","man in motorized wheelchair people body person activity"],
+    ["👨‍🦽‍➡️","man in manual wheelchair facing right people body person activity"],
+    ["👨‍🦽","man in manual wheelchair people body person activity"],
+    ["👨‍⚕️","male doctor people body person role"],
+    ["👨‍⚖️","male judge people body person role"],
+    ["👨‍✈️","male pilot people body person role"],
+    ["👨‍❤️‍👨","man heart man people body family"],
+    ["👨‍❤️‍💋‍👨","man kiss man people body family"],
+    ["👨","man people body person"],
+    ["👩‍🌾","female farmer people body person role"],
+    ["👩‍🍳","female cook people body person role"],
+    ["👩‍🍼","woman feeding baby people body person role"],
+    ["👩‍🎓","female student people body person role"],
+    ["👩‍🎤","female singer people body person role"],
+    ["👩‍🎨","female artist people body person role"],
+    ["👩‍🏫","female teacher people body person role"],
+    ["👩‍🏭","female factory worker people body person role"],
+    ["👩‍👦‍👦","woman boy boy people body family"],
+    ["👩‍👦","woman boy people body family"],
+    ["👩‍👧‍👦","woman girl boy people body family"],
+    ["👩‍👧‍👧","woman girl girl people body family"],
+    ["👩‍👧","woman girl people body family"],
+    ["👩‍👩‍👦","woman woman boy people body family"],
+    ["👩‍👩‍👦‍👦","woman woman boy boy people body family"],
+    ["👩‍👩‍👧","woman woman girl people body family"],
+    ["👩‍👩‍👧‍👦","woman woman girl boy people body family"],
+    ["👩‍👩‍👧‍👧","woman woman girl girl people body family"],
+    ["👩‍💻","female technologist people body person role"],
+    ["👩‍💼","female office worker people body person role"],
+    ["👩‍🔧","female mechanic people body person role"],
+    ["👩‍🔬","female scientist people body person role"],
+    ["👩‍🚀","female astronaut people body person role"],
+    ["👩‍🚒","female firefighter people body person role"],
+    ["👩‍🦯‍➡️","woman with white cane facing right people body person activity"],
+    ["👩‍🦯","woman with probing cane people body person activity"],
+    ["👩‍🦰","red haired woman people body person"],
+    ["👩‍🦱","curly haired woman people body person"],
+    ["👩‍🦲","bald woman people body person"],
+    ["👩‍🦳","white haired woman people body person"],
+    ["👩‍🦼‍➡️","woman in motorized wheelchair facing right people body person activity"],
+    ["👩‍🦼","woman in motorized wheelchair people body person activity"],
+    ["👩‍🦽‍➡️","woman in manual wheelchair facing right people body person activity"],
+    ["👩‍🦽","woman in manual wheelchair people body person activity"],
+    ["👩‍⚕️","female doctor people body person role"],
+    ["👩‍⚖️","female judge people body person role"],
+    ["👩‍✈️","female pilot people body person role"],
+    ["👩‍❤️‍👨","woman heart man people body family"],
+    ["👩‍❤️‍👩","woman heart woman people body family"],
+    ["👩‍❤️‍💋‍👨","woman kiss man people body family"],
+    ["👩‍❤️‍💋‍👩","woman kiss woman people body family"],
+    ["👩","woman people body person"],
+    ["👪","family people body person symbol"],
+    ["👫","man and woman holding hands woman and man holding hands couple people body family"],
+    ["👬","two men holding hands men holding hands people body family"],
+    ["👭","two women holding hands women holding hands people body family"],
+    ["👮‍♀️","female police officer people body person role"],
+    ["👮‍♂️","male police officer people body person role"],
+    ["👮","cop people body person role"],
+    ["👯‍♀️","women with bunny ears partying woman with bunny ears partying people body person activity"],
+    ["👯‍♂️","men with bunny ears partying man with bunny ears partying people body person activity"],
+    ["👯","dancers people body person activity"],
+    ["👰‍♀️","woman with veil people body person role"],
+    ["👰‍♂️","man with veil people body person role"],
+    ["👰","bride with veil people body person role"],
+    ["👱‍♀️","blond haired woman people body person"],
+    ["👱‍♂️","blond haired man people body person"],
+    ["👱","person with blond hair people body person"],
+    ["👲","man with gua pi mao people body person role"],
+    ["👳‍♀️","woman wearing turban people body person role"],
+    ["👳‍♂️","man wearing turban people body person role"],
+    ["👳","man with turban people body person role"],
+    ["👴","older man people body person"],
+    ["👵","older woman people body person"],
+    ["👶","baby people body person"],
+    ["👷‍♀️","female construction worker people body person role"],
+    ["👷‍♂️","male construction worker people body person role"],
+    ["👷","construction worker people body person role"],
+    ["👸","princess people body person role"],
+    ["👹","japanese ogre smileys emotion face costume"],
+    ["👺","japanese goblin smileys emotion face costume"],
+    ["👻","ghost smileys emotion face costume"],
+    ["👼","angel people body person fantasy"],
+    ["👽","alien smileys emotion face costume"],
+    ["👾","space invader smileys emotion face costume"],
+    ["👿","imp smileys emotion face negative"],
+    ["💀","skull smileys emotion face negative"],
+    ["💁‍♀️","woman tipping hand people body person gesture"],
+    ["💁‍♂️","man tipping hand people body person gesture"],
+    ["💁","information desk person people body person gesture"],
+    ["💂‍♀️","female guard people body person role"],
+    ["💂‍♂️","male guard people body person role"],
+    ["💂","guardsman people body person role"],
+    ["💃","dancer people body person activity"],
+    ["💄","lipstick objects clothing"],
+    ["💅","nail care people body hand prop"],
+    ["💆‍♀️","woman getting massage people body person activity"],
+    ["💆‍♂️","man getting massage people body person activity"],
+    ["💆","massage people body person activity"],
+    ["💇‍♀️","woman getting haircut people body person activity"],
+    ["💇‍♂️","man getting haircut people body person activity"],
+    ["💇","haircut people body person activity"],
+    ["💈","barber travel places place other"],
+    ["💉","syringe objects medical"],
+    ["💊","pill objects medical"],
+    ["💋","kiss smileys emotion emotion"],
+    ["💌","love letter smileys emotion heart"],
+    ["💍","ring objects clothing"],
+    ["💎","gem objects clothing"],
+    ["💏","couplekiss people body family"],
+    ["💐","bouquet animals nature plant flower"],
+    ["💑","couple with heart people body family"],
+    ["💒","wedding travel places place building"],
+    ["💓","heartbeat smileys emotion heart"],
+    ["💔","broken heart smileys emotion heart"],
+    ["💕","two hearts smileys emotion heart"],
+    ["💖","sparkling heart smileys emotion heart"],
+    ["💗","heartpulse smileys emotion heart"],
+    ["💘","cupid smileys emotion heart"],
+    ["💙","blue heart smileys emotion heart"],
+    ["💚","green heart smileys emotion heart"],
+    ["💛","yellow heart smileys emotion heart"],
+    ["💜","purple heart smileys emotion heart"],
+    ["💝","gift heart smileys emotion heart"],
+    ["💞","revolving hearts smileys emotion heart"],
+    ["💟","heart decoration smileys emotion heart"],
+    ["💠","diamond shape with a dot inside symbols geometric"],
+    ["💡","bulb objects light video"],
+    ["💢","anger smileys emotion emotion"],
+    ["💣","bomb objects tool"],
+    ["💤","zzz smileys emotion emotion"],
+    ["💥","boom collision smileys emotion emotion"],
+    ["💦","sweat drops smileys emotion emotion"],
+    ["💧","droplet travel places sky weather hydrate water"],
+    ["💨","dash smileys emotion emotion"],
+    ["💩","hankey poop shit smileys emotion face costume"],
+    ["💪","muscle people body body parts exercise workout"],
+    ["💫","dizzy smileys emotion emotion"],
+    ["💬","speech balloon smileys emotion emotion"],
+    ["💭","thought balloon smileys emotion emotion"],
+    ["💮","white flower animals nature plant flower"],
+    ["💯","100 smileys emotion emotion"],
+    ["💰","moneybag objects money budget save"],
+    ["💱","currency exchange symbols currency"],
+    ["💲","heavy dollar sign symbols currency"],
+    ["💳","credit card objects money budget spending"],
+    ["💴","yen objects money"],
+    ["💵","dollar objects money budget save"],
+    ["💶","euro objects money"],
+    ["💷","pound objects money"],
+    ["💸","money with wings objects money"],
+    ["💹","chart objects money"],
+    ["💺","seat travel places transport air"],
+    ["💻","computer objects computer"],
+    ["💼","briefcase objects office"],
+    ["💽","minidisc objects computer"],
+    ["💾","floppy disk objects computer"],
+    ["💿","cd objects computer"],
+    ["📀","dvd objects computer"],
+    ["📁","file folder objects office"],
+    ["📂","open file folder objects office"],
+    ["📃","page with curl objects book paper"],
+    ["📄","page facing up objects book paper"],
+    ["📅","date objects office habit schedule"],
+    ["📆","calendar objects office"],
+    ["📇","card index objects office"],
+    ["📈","chart with upwards trend objects office budget invest"],
+    ["📉","chart with downwards trend objects office"],
+    ["📊","bar chart objects office"],
+    ["📋","clipboard objects office"],
+    ["📌","pushpin objects office"],
+    ["📍","round pushpin objects office"],
+    ["📎","paperclip objects office"],
+    ["📏","straight ruler objects office"],
+    ["📐","triangular ruler objects office"],
+    ["📑","bookmark tabs objects book paper"],
+    ["📒","ledger objects book paper"],
+    ["📓","notebook objects book paper journal write"],
+    ["📔","notebook with decorative cover objects book paper journal write"],
+    ["📕","closed book objects book paper"],
+    ["📖","book open book objects book paper read study"],
+    ["📗","green book objects book paper"],
+    ["📘","blue book objects book paper"],
+    ["📙","orange book objects book paper"],
+    ["📚","books objects book paper read study"],
+    ["📛","name badge symbols other symbol"],
+    ["📜","scroll objects book paper"],
+    ["📝","memo pencil objects writing journal write"],
+    ["📞","telephone receiver objects phone"],
+    ["📟","pager objects phone"],
+    ["📠","fax objects phone"],
+    ["📡","satellite antenna objects science"],
+    ["📢","loudspeaker objects sound"],
+    ["📣","mega objects sound"],
+    ["📤","outbox tray objects mail"],
+    ["📥","inbox tray objects mail"],
+    ["📦","package objects mail"],
+    ["📧","e mail objects mail"],
+    ["📨","incoming envelope objects mail"],
+    ["📩","envelope with arrow objects mail"],
+    ["📪","mailbox closed objects mail"],
+    ["📫","mailbox objects mail"],
+    ["📬","mailbox with mail objects mail"],
+    ["📭","mailbox with no mail objects mail"],
+    ["📮","postbox objects mail"],
+    ["📯","postal horn objects sound"],
+    ["📰","newspaper objects book paper"],
+    ["📱","iphone objects phone"],
+    ["📲","calling objects phone"],
+    ["📳","vibration mode symbols av symbol"],
+    ["📴","mobile phone off symbols av symbol"],
+    ["📵","no mobile phones symbols warning"],
+    ["📶","signal strength symbols av symbol"],
+    ["📷","camera objects light video"],
+    ["📸","camera with flash objects light video"],
+    ["📹","video camera objects light video"],
+    ["📺","tv objects light video"],
+    ["📻","radio objects music"],
+    ["📼","vhs objects light video"],
+    ["📽️","film projector objects light video"],
+    ["📿","prayer beads objects clothing"],
+    ["🔀","twisted rightwards arrows symbols av symbol"],
+    ["🔁","repeat symbols av symbol"],
+    ["🔂","repeat one symbols av symbol"],
+    ["🔃","arrows clockwise symbols arrow"],
+    ["🔄","arrows counterclockwise symbols arrow"],
+    ["🔅","low brightness symbols av symbol"],
+    ["🔆","high brightness symbols av symbol"],
+    ["🔇","mute objects sound"],
+    ["🔈","speaker objects sound"],
+    ["🔉","sound objects sound"],
+    ["🔊","loud sound objects sound"],
+    ["🔋","battery objects computer"],
+    ["🔌","electric plug objects computer"],
+    ["🔍","mag objects light video"],
+    ["🔎","mag right objects light video"],
+    ["🔏","lock with ink pen objects lock"],
+    ["🔐","closed lock with key objects lock"],
+    ["🔑","key objects lock"],
+    ["🔒","lock objects lock"],
+    ["🔓","unlock objects lock"],
+    ["🔔","bell objects sound"],
+    ["🔕","no bell objects sound"],
+    ["🔖","bookmark objects book paper"],
+    ["🔗","link objects tool"],
+    ["🔘","radio button symbols geometric"],
+    ["🔙","back symbols arrow"],
+    ["🔚","end symbols arrow"],
+    ["🔛","on symbols arrow"],
+    ["🔜","soon symbols arrow"],
+    ["🔝","top symbols arrow"],
+    ["🔞","underage symbols warning"],
+    ["🔟","keycap ten symbols keycap"],
+    ["🔠","capital abcd symbols alphanum"],
+    ["🔡","abcd symbols alphanum"],
+    ["🔢","1234 symbols alphanum"],
+    ["🔣","symbols symbols alphanum"],
+    ["🔤","abc symbols alphanum"],
+    ["🔥","fire travel places sky weather habit streak"],
+    ["🔦","flashlight objects light video"],
+    ["🔧","wrench objects tool"],
+    ["🔨","hammer objects tool"],
+    ["🔩","nut and bolt objects tool"],
+    ["🔪","hocho knife food drink dishware"],
+    ["🔫","gun activities game"],
+    ["🔬","microscope objects science"],
+    ["🔭","telescope objects science"],
+    ["🔮","crystal ball activities game"],
+    ["🔯","six pointed star symbols religion"],
+    ["🔰","beginner symbols other symbol"],
+    ["🔱","trident symbols other symbol"],
+    ["🔲","black square button symbols geometric"],
+    ["🔳","white square button symbols geometric"],
+    ["🔴","red circle symbols geometric"],
+    ["🔵","large blue circle symbols geometric"],
+    ["🔶","large orange diamond symbols geometric"],
+    ["🔷","large blue diamond symbols geometric"],
+    ["🔸","small orange diamond symbols geometric"],
+    ["🔹","small blue diamond symbols geometric"],
+    ["🔺","small red triangle symbols geometric"],
+    ["🔻","small red triangle down symbols geometric"],
+    ["🔼","arrow up small symbols av symbol"],
+    ["🔽","arrow down small symbols av symbol"],
+    ["🕉️","om symbol symbols religion"],
+    ["🕊️","dove of peace animals nature animal bird"],
+    ["🕋","kaaba travel places place religious"],
+    ["🕌","mosque travel places place religious"],
+    ["🕍","synagogue travel places place religious"],
+    ["🕎","menorah with nine branches symbols religion"],
+    ["🕐","clock1 travel places time"],
+    ["🕑","clock2 travel places time"],
+    ["🕒","clock3 travel places time"],
+    ["🕓","clock4 travel places time"],
+    ["🕔","clock5 travel places time"],
+    ["🕕","clock6 travel places time"],
+    ["🕖","clock7 travel places time"],
+    ["🕗","clock8 travel places time"],
+    ["🕘","clock9 travel places time"],
+    ["🕙","clock10 travel places time"],
+    ["🕚","clock11 travel places time"],
+    ["🕛","clock12 travel places time"],
+    ["🕜","clock130 travel places time"],
+    ["🕝","clock230 travel places time"],
+    ["🕞","clock330 travel places time"],
+    ["🕟","clock430 travel places time"],
+    ["🕠","clock530 travel places time"],
+    ["🕡","clock630 travel places time"],
+    ["🕢","clock730 travel places time"],
+    ["🕣","clock830 travel places time"],
+    ["🕤","clock930 travel places time"],
+    ["🕥","clock1030 travel places time"],
+    ["🕦","clock1130 travel places time"],
+    ["🕧","clock1230 travel places time"],
+    ["🕯️","candle objects light video meditate meditation calm"],
+    ["🕰️","mantelpiece clock travel places time"],
+    ["🕳️","hole smileys emotion emotion"],
+    ["🕴️","man in business suit levitating people body person activity"],
+    ["🕵️‍♀️","female detective people body person role"],
+    ["🕵️‍♂️","male detective people body person role"],
+    ["🕵️","sleuth or spy people body person role"],
+    ["🕶️","dark sunglasses objects clothing"],
+    ["🕷️","spider animals nature animal bug"],
+    ["🕸️","spider web animals nature animal bug"],
+    ["🕹️","joystick activities game"],
+    ["🕺","man dancing people body person activity"],
+    ["🖇️","linked paperclips objects office"],
+    ["🖊️","lower left ballpoint pen objects writing"],
+    ["🖋️","lower left fountain pen objects writing"],
+    ["🖌️","lower left paintbrush objects writing"],
+    ["🖍️","lower left crayon objects writing"],
+    ["🖐️","raised hand with fingers splayed people body hand fingers open"],
+    ["🖕","middle finger reversed hand with middle finger extended people body hand single finger"],
+    ["🖖","spock hand people body hand fingers open"],
+    ["🖤","black heart smileys emotion heart"],
+    ["🖥️","desktop computer objects computer"],
+    ["🖨️","printer objects computer"],
+    ["🖱️","three button mouse objects computer"],
+    ["🖲️","trackball objects computer"],
+    ["🖼️","frame with picture activities arts crafts"],
+    ["🗂️","card index dividers objects office"],
+    ["🗃️","card file box objects office"],
+    ["🗄️","file cabinet objects office"],
+    ["🗑️","wastebasket objects office"],
+    ["🗒️","spiral note pad objects office"],
+    ["🗓️","spiral calendar pad objects office"],
+    ["🗜️","compression objects tool"],
+    ["🗝️","old key objects lock"],
+    ["🗞️","rolled up newspaper objects book paper"],
+    ["🗡️","dagger knife objects tool"],
+    ["🗣️","speaking head in silhouette people body person symbol"],
+    ["🗨️","left speech bubble smileys emotion emotion"],
+    ["🗯️","right anger bubble smileys emotion emotion"],
+    ["🗳️","ballot box with ballot objects mail"],
+    ["🗺️","world map travel places place map"],
+    ["🗻","mount fuji travel places place geographic"],
+    ["🗼","tokyo tower travel places place building"],
+    ["🗽","statue of liberty travel places place building"],
+    ["🗾","japan travel places place map"],
+    ["🗿","moyai objects other object"],
+    ["😀","grinning smileys emotion face smiling"],
+    ["😁","grin smileys emotion face smiling"],
+    ["😂","joy smileys emotion face smiling"],
+    ["😃","smiley smileys emotion face smiling"],
+    ["😄","smile smileys emotion face smiling"],
+    ["😅","sweat smile smileys emotion face smiling"],
+    ["😆","laughing satisfied smileys emotion face smiling"],
+    ["😇","innocent smileys emotion face smiling"],
+    ["😈","smiling imp smileys emotion face negative"],
+    ["😉","wink smileys emotion face smiling"],
+    ["😊","blush smileys emotion face smiling"],
+    ["😋","yum smileys emotion face tongue"],
+    ["😌","relieved smileys emotion face sleepy"],
+    ["😍","heart eyes smileys emotion face affection"],
+    ["😎","sunglasses smileys emotion face glasses"],
+    ["😏","smirk smileys emotion face neutral skeptical"],
+    ["😐","neutral face smileys emotion face neutral skeptical"],
+    ["😑","expressionless smileys emotion face neutral skeptical"],
+    ["😒","unamused smileys emotion face neutral skeptical"],
+    ["😓","sweat smileys emotion face concerned"],
+    ["😔","pensive smileys emotion face sleepy"],
+    ["😕","confused smileys emotion face concerned"],
+    ["😖","confounded smileys emotion face concerned"],
+    ["😗","kissing smileys emotion face affection"],
+    ["😘","kissing heart smileys emotion face affection"],
+    ["😙","kissing smiling eyes smileys emotion face affection"],
+    ["😚","kissing closed eyes smileys emotion face affection"],
+    ["😛","stuck out tongue smileys emotion face tongue"],
+    ["😜","stuck out tongue winking eye smileys emotion face tongue"],
+    ["😝","stuck out tongue closed eyes smileys emotion face tongue"],
+    ["😞","disappointed smileys emotion face concerned"],
+    ["😟","worried smileys emotion face concerned"],
+    ["😠","angry smileys emotion face negative"],
+    ["😡","rage smileys emotion face negative"],
+    ["😢","cry smileys emotion face concerned"],
+    ["😣","persevere smileys emotion face concerned"],
+    ["😤","triumph smileys emotion face negative"],
+    ["😥","disappointed relieved smileys emotion face concerned"],
+    ["😦","frowning smileys emotion face concerned"],
+    ["😧","anguished smileys emotion face concerned"],
+    ["😨","fearful smileys emotion face concerned"],
+    ["😩","weary smileys emotion face concerned"],
+    ["😪","sleepy smileys emotion face sleepy"],
+    ["😫","tired face smileys emotion face concerned"],
+    ["😬","grimacing smileys emotion face neutral skeptical"],
+    ["😭","sob smileys emotion face concerned"],
+    ["😮‍💨","face exhaling smileys emotion face neutral skeptical"],
+    ["😮","open mouth smileys emotion face concerned"],
+    ["😯","hushed smileys emotion face concerned"],
+    ["😰","cold sweat smileys emotion face concerned"],
+    ["😱","scream smileys emotion face concerned"],
+    ["😲","astonished smileys emotion face concerned"],
+    ["😳","flushed smileys emotion face concerned"],
+    ["😴","sleeping smileys emotion face sleepy"],
+    ["😵‍💫","face with spiral eyes smileys emotion face unwell"],
+    ["😵","dizzy face smileys emotion face unwell"],
+    ["😶‍🌫️","face in clouds smileys emotion face neutral skeptical"],
+    ["😶","no mouth smileys emotion face neutral skeptical"],
+    ["😷","mask smileys emotion face unwell"],
+    ["😸","smile cat smileys emotion cat face"],
+    ["😹","joy cat smileys emotion cat face"],
+    ["😺","smiley cat smileys emotion cat face"],
+    ["😻","heart eyes cat smileys emotion cat face"],
+    ["😼","smirk cat smileys emotion cat face"],
+    ["😽","kissing cat smileys emotion cat face"],
+    ["😾","pouting cat smileys emotion cat face"],
+    ["😿","crying cat face smileys emotion cat face"],
+    ["🙀","scream cat smileys emotion cat face"],
+    ["🙁","slightly frowning face smileys emotion face concerned"],
+    ["🙂‍↔️","head shaking horizontally smileys emotion face neutral skeptical"],
+    ["🙂‍↕️","head shaking vertically smileys emotion face neutral skeptical"],
+    ["🙂","slightly smiling face smileys emotion face smiling"],
+    ["🙃","upside down face smileys emotion face smiling"],
+    ["🙄","face with rolling eyes smileys emotion face neutral skeptical"],
+    ["🙅‍♀️","woman gesturing no people body person gesture"],
+    ["🙅‍♂️","man gesturing no people body person gesture"],
+    ["🙅","no good people body person gesture"],
+    ["🙆‍♀️","woman gesturing ok people body person gesture"],
+    ["🙆‍♂️","man gesturing ok people body person gesture"],
+    ["🙆","ok woman people body person gesture"],
+    ["🙇‍♀️","woman bowing people body person gesture"],
+    ["🙇‍♂️","man bowing people body person gesture"],
+    ["🙇","bow people body person gesture"],
+    ["🙈","see no evil smileys emotion monkey face"],
+    ["🙉","hear no evil smileys emotion monkey face"],
+    ["🙊","speak no evil smileys emotion monkey face"],
+    ["🙋‍♀️","woman raising hand people body person gesture"],
+    ["🙋‍♂️","man raising hand people body person gesture"],
+    ["🙋","raising hand people body person gesture"],
+    ["🙌","raised hands people body hands"],
+    ["🙍‍♀️","woman frowning people body person gesture"],
+    ["🙍‍♂️","man frowning people body person gesture"],
+    ["🙍","person frowning people body person gesture"],
+    ["🙎‍♀️","woman pouting people body person gesture"],
+    ["🙎‍♂️","man pouting people body person gesture"],
+    ["🙎","person with pouting face people body person gesture"],
+    ["🙏","pray people body hands meditate gratitude"],
+    ["🚀","rocket travel places transport air"],
+    ["🚁","helicopter travel places transport air"],
+    ["🚂","steam locomotive travel places transport ground"],
+    ["🚃","railway car travel places transport ground"],
+    ["🚄","bullettrain side travel places transport ground"],
+    ["🚅","bullettrain front travel places transport ground"],
+    ["🚆","train2 travel places transport ground"],
+    ["🚇","metro travel places transport ground"],
+    ["🚈","light rail travel places transport ground"],
+    ["🚉","station travel places transport ground"],
+    ["🚊","tram travel places transport ground"],
+    ["🚋","train travel places transport ground"],
+    ["🚌","bus travel places transport ground"],
+    ["🚍","oncoming bus travel places transport ground"],
+    ["🚎","trolleybus travel places transport ground"],
+    ["🚏","busstop travel places transport ground"],
+    ["🚐","minibus travel places transport ground"],
+    ["🚑","ambulance travel places transport ground"],
+    ["🚒","fire engine travel places transport ground"],
+    ["🚓","police car travel places transport ground"],
+    ["🚔","oncoming police car travel places transport ground"],
+    ["🚕","taxi travel places transport ground"],
+    ["🚖","oncoming taxi travel places transport ground"],
+    ["🚗","car red car travel places transport ground"],
+    ["🚘","oncoming automobile travel places transport ground"],
+    ["🚙","blue car travel places transport ground"],
+    ["🚚","truck travel places transport ground"],
+    ["🚛","articulated lorry travel places transport ground"],
+    ["🚜","tractor travel places transport ground"],
+    ["🚝","monorail travel places transport ground"],
+    ["🚞","mountain railway travel places transport ground"],
+    ["🚟","suspension railway travel places transport air"],
+    ["🚠","mountain cableway travel places transport air"],
+    ["🚡","aerial tramway travel places transport air"],
+    ["🚢","ship travel places transport water"],
+    ["🚣‍♀️","woman rowing boat people body person sport"],
+    ["🚣‍♂️","man rowing boat people body person sport"],
+    ["🚣","rowboat people body person sport"],
+    ["🚤","speedboat travel places transport water"],
+    ["🚥","traffic light travel places transport ground"],
+    ["🚦","vertical traffic light travel places transport ground"],
+    ["🚧","construction travel places transport ground"],
+    ["🚨","rotating light travel places transport ground"],
+    ["🚩","triangular flag on post flags flag"],
+    ["🚪","door objects household"],
+    ["🚫","no entry sign symbols warning"],
+    ["🚬","smoking objects other object"],
+    ["🚭","no smoking symbols warning"],
+    ["🚮","put litter in its place symbols transport sign"],
+    ["🚯","do not litter symbols warning"],
+    ["🚰","potable water symbols transport sign hydrate water"],
+    ["🚱","non potable water symbols warning"],
+    ["🚲","bike travel places transport ground"],
+    ["🚳","no bicycles symbols warning"],
+    ["🚴‍♀️","woman biking people body person sport"],
+    ["🚴‍♂️","man biking people body person sport"],
+    ["🚴","bicyclist people body person sport exercise workout"],
+    ["🚵‍♀️","woman mountain biking people body person sport"],
+    ["🚵‍♂️","man mountain biking people body person sport"],
+    ["🚵","mountain bicyclist people body person sport"],
+    ["🚶‍♀️","woman walking people body person activity"],
+    ["🚶‍♀️‍➡️","woman walking facing right people body person activity"],
+    ["🚶‍♂️","man walking people body person activity"],
+    ["🚶‍♂️‍➡️","man walking facing right people body person activity"],
+    ["🚶‍➡️","person walking facing right people body person activity"],
+    ["🚶","walking people body person activity exercise workout"],
+    ["🚷","no pedestrians symbols warning"],
+    ["🚸","children crossing symbols warning"],
+    ["🚹","mens symbols transport sign"],
+    ["🚺","womens symbols transport sign"],
+    ["🚻","restroom symbols transport sign"],
+    ["🚼","baby symbol symbols transport sign"],
+    ["🚽","toilet objects household"],
+    ["🚾","wc symbols transport sign"],
+    ["🚿","shower objects household clean chore"],
+    ["🛀","bath people body person resting"],
+    ["🛁","bathtub objects household clean chore"],
+    ["🛂","passport control symbols transport sign"],
+    ["🛃","customs symbols transport sign"],
+    ["🛄","baggage claim symbols transport sign"],
+    ["🛅","left luggage symbols transport sign"],
+    ["🛋️","couch and lamp objects household"],
+    ["🛌","sleeping accommodation people body person resting"],
+    ["🛍️","shopping bags objects clothing"],
+    ["🛎️","bellhop bell travel places hotel"],
+    ["🛏️","bed objects household"],
+    ["🛐","place of worship symbols religion"],
+    ["🛑","octagonal sign travel places transport ground"],
+    ["🛒","shopping trolley objects household"],
+    ["🛕","hindu temple travel places place religious"],
+    ["🛖","hut travel places place building"],
+    ["🛗","elevator objects household"],
+    ["🛜","wireless symbols av symbol"],
+    ["🛝","playground slide travel places place other"],
+    ["🛞","wheel travel places transport ground"],
+    ["🛟","ring buoy travel places transport water"],
+    ["🛠️","hammer and wrench objects tool"],
+    ["🛡️","shield objects tool"],
+    ["🛢️","oil drum travel places transport ground"],
+    ["🛣️","motorway travel places transport ground"],
+    ["🛤️","railway track travel places transport ground"],
+    ["🛥️","motor boat travel places transport water"],
+    ["🛩️","small airplane travel places transport air"],
+    ["🛫","airplane departure travel places transport air"],
+    ["🛬","airplane arriving travel places transport air"],
+    ["🛰️","satellite travel places transport air"],
+    ["🛳️","passenger ship travel places transport water"],
+    ["🛴","scooter travel places transport ground"],
+    ["🛵","motor scooter travel places transport ground"],
+    ["🛶","canoe travel places transport water"],
+    ["🛷","sled activities sport"],
+    ["🛸","flying saucer travel places transport air"],
+    ["🛹","skateboard travel places transport ground"],
+    ["🛺","auto rickshaw travel places transport ground"],
+    ["🛻","pickup truck travel places transport ground"],
+    ["🛼","roller skate travel places transport ground"],
+    ["🟠","large orange circle symbols geometric"],
+    ["🟡","large yellow circle symbols geometric"],
+    ["🟢","large green circle symbols geometric"],
+    ["🟣","large purple circle symbols geometric"],
+    ["🟤","large brown circle symbols geometric"],
+    ["🟥","large red square symbols geometric"],
+    ["🟦","large blue square symbols geometric"],
+    ["🟧","large orange square symbols geometric"],
+    ["🟨","large yellow square symbols geometric"],
+    ["🟩","large green square symbols geometric"],
+    ["🟪","large purple square symbols geometric"],
+    ["🟫","large brown square symbols geometric"],
+    ["🟰","heavy equals sign symbols math"],
+    ["🤌","pinched fingers people body hand fingers partial"],
+    ["🤍","white heart smileys emotion heart"],
+    ["🤎","brown heart smileys emotion heart"],
+    ["🤏","pinching hand people body hand fingers partial"],
+    ["🤐","zipper mouth face smileys emotion face neutral skeptical"],
+    ["🤑","money mouth face smileys emotion face tongue"],
+    ["🤒","face with thermometer smileys emotion face unwell"],
+    ["🤓","nerd face smileys emotion face glasses"],
+    ["🤔","thinking face smileys emotion face hand"],
+    ["🤕","face with head bandage smileys emotion face unwell"],
+    ["🤖","robot face smileys emotion face costume"],
+    ["🤗","hugging face smileys emotion face hand"],
+    ["🤘","the horns sign of the horns people body hand fingers partial"],
+    ["🤙","call me hand people body hand fingers partial"],
+    ["🤚","raised back of hand people body hand fingers open"],
+    ["🤛","left facing fist people body hand fingers closed"],
+    ["🤜","right facing fist people body hand fingers closed"],
+    ["🤝","handshake people body hands"],
+    ["🤞","crossed fingers hand with index and middle fingers crossed people body hand fingers partial"],
+    ["🤟","i love you hand sign people body hand fingers partial"],
+    ["🤠","face with cowboy hat smileys emotion face hat"],
+    ["🤡","clown face smileys emotion face costume"],
+    ["🤢","nauseated face smileys emotion face unwell"],
+    ["🤣","rolling on the floor laughing smileys emotion face smiling"],
+    ["🤤","drooling face smileys emotion face sleepy"],
+    ["🤥","lying face smileys emotion face neutral skeptical"],
+    ["🤦‍♀️","woman facepalming people body person gesture"],
+    ["🤦‍♂️","man facepalming people body person gesture"],
+    ["🤦","face palm people body person gesture"],
+    ["🤧","sneezing face smileys emotion face unwell"],
+    ["🤨","face with raised eyebrow face with one eyebrow raised smileys emotion face neutral skeptical"],
+    ["🤩","star struck grinning face with star eyes smileys emotion face affection"],
+    ["🤪","zany face grinning face with one large and one small eye smileys emotion face tongue"],
+    ["🤫","shushing face face with finger covering closed lips smileys emotion face hand"],
+    ["🤬","face with symbols on mouth serious face with symbols covering mouth smileys emotion face negative"],
+    ["🤭","face with hand over mouth smiling face with smiling eyes and hand covering mouth smileys emotion face hand"],
+    ["🤮","face vomiting face with open mouth vomiting smileys emotion face unwell"],
+    ["🤯","exploding head shocked face with exploding head smileys emotion face unwell"],
+    ["🤰","pregnant woman people body person role"],
+    ["🤱","breast feeding people body person role"],
+    ["🤲","palms up together people body hands"],
+    ["🤳","selfie people body hand prop"],
+    ["🤴","prince people body person role"],
+    ["🤵‍♀️","woman in tuxedo people body person role"],
+    ["🤵‍♂️","man in tuxedo people body person role"],
+    ["🤵","person in tuxedo people body person role"],
+    ["🤶","mrs claus mother christmas people body person fantasy"],
+    ["🤷‍♀️","woman shrugging people body person gesture"],
+    ["🤷‍♂️","man shrugging people body person gesture"],
+    ["🤷","shrug people body person gesture"],
+    ["🤸‍♀️","woman cartwheeling people body person sport"],
+    ["🤸‍♂️","man cartwheeling people body person sport"],
+    ["🤸","person doing cartwheel people body person sport exercise workout"],
+    ["🤹‍♀️","woman juggling people body person sport"],
+    ["🤹‍♂️","man juggling people body person sport"],
+    ["🤹","juggling people body person sport"],
+    ["🤺","fencer people body person sport"],
+    ["🤼‍♀️","woman wrestling people body person sport"],
+    ["🤼‍♂️","man wrestling people body person sport"],
+    ["🤼","wrestlers people body person sport"],
+    ["🤽‍♀️","woman playing water polo people body person sport"],
+    ["🤽‍♂️","man playing water polo people body person sport"],
+    ["🤽","water polo people body person sport"],
+    ["🤾‍♀️","woman playing handball people body person sport"],
+    ["🤾‍♂️","man playing handball people body person sport"],
+    ["🤾","handball people body person sport"],
+    ["🤿","diving mask activities sport"],
+    ["🥀","wilted flower animals nature plant flower"],
+    ["🥁","drum with drumsticks objects musical instrument"],
+    ["🥂","clinking glasses food drink drink"],
+    ["🥃","tumbler glass food drink drink"],
+    ["🥄","spoon food drink dishware"],
+    ["🥅","goal net activities sport"],
+    ["🥇","first place medal activities award medal"],
+    ["🥈","second place medal activities award medal"],
+    ["🥉","third place medal activities award medal"],
+    ["🥊","boxing glove activities sport exercise workout"],
+    ["🥋","martial arts uniform activities sport"],
+    ["🥌","curling stone activities sport"],
+    ["🥍","lacrosse activities sport"],
+    ["🥎","softball activities sport"],
+    ["🥏","flying disc activities sport"],
+    ["🥐","croissant food drink food prepared"],
+    ["🥑","avocado food drink food vegetable"],
+    ["🥒","cucumber food drink food vegetable"],
+    ["🥓","bacon food drink food prepared"],
+    ["🥔","potato food drink food vegetable"],
+    ["🥕","carrot food drink food vegetable"],
+    ["🥖","baguette bread food drink food prepared"],
+    ["🥗","green salad food drink food prepared"],
+    ["🥘","shallow pan of food food drink food prepared"],
+    ["🥙","stuffed flatbread food drink food prepared"],
+    ["🥚","egg food drink food prepared"],
+    ["🥛","glass of milk food drink drink"],
+    ["🥜","peanuts food drink food vegetable"],
+    ["🥝","kiwifruit food drink food fruit"],
+    ["🥞","pancakes food drink food prepared"],
+    ["🥟","dumpling food drink food asian"],
+    ["🥠","fortune cookie food drink food asian"],
+    ["🥡","takeout box food drink food asian"],
+    ["🥢","chopsticks food drink dishware"],
+    ["🥣","bowl with spoon food drink food prepared"],
+    ["🥤","cup with straw food drink drink hydrate drink"],
+    ["🥥","coconut food drink food fruit"],
+    ["🥦","broccoli food drink food vegetable"],
+    ["🥧","pie food drink food sweet"],
+    ["🥨","pretzel food drink food prepared"],
+    ["🥩","cut of meat food drink food prepared"],
+    ["🥪","sandwich food drink food prepared"],
+    ["🥫","canned food food drink food prepared"],
+    ["🥬","leafy green food drink food vegetable"],
+    ["🥭","mango food drink food fruit"],
+    ["🥮","moon cake food drink food asian"],
+    ["🥯","bagel food drink food prepared"],
+    ["🥰","smiling face with 3 hearts smileys emotion face affection"],
+    ["🥱","yawning face smileys emotion face concerned"],
+    ["🥲","smiling face with tear smileys emotion face affection"],
+    ["🥳","partying face smileys emotion face hat"],
+    ["🥴","woozy face smileys emotion face unwell"],
+    ["🥵","hot face smileys emotion face unwell"],
+    ["🥶","cold face smileys emotion face unwell"],
+    ["🥷","ninja people body person role"],
+    ["🥸","disguised face smileys emotion face hat"],
+    ["🥹","face holding back tears smileys emotion face concerned"],
+    ["🥺","pleading face smileys emotion face concerned"],
+    ["🥻","sari objects clothing"],
+    ["🥼","lab coat objects clothing"],
+    ["🥽","goggles objects clothing"],
+    ["🥾","hiking boot objects clothing"],
+    ["🥿","womans flat shoe objects clothing"],
+    ["🦀","crab animals nature animal marine"],
+    ["🦁","lion face animals nature animal mammal"],
+    ["🦂","scorpion animals nature animal bug"],
+    ["🦃","turkey animals nature animal bird"],
+    ["🦄","unicorn face animals nature animal mammal"],
+    ["🦅","eagle animals nature animal bird"],
+    ["🦆","duck animals nature animal bird"],
+    ["🦇","bat animals nature animal mammal"],
+    ["🦈","shark animals nature animal marine"],
+    ["🦉","owl animals nature animal bird"],
+    ["🦊","fox face animals nature animal mammal"],
+    ["🦋","butterfly animals nature animal bug"],
+    ["🦌","deer animals nature animal mammal"],
+    ["🦍","gorilla animals nature animal mammal"],
+    ["🦎","lizard animals nature animal reptile"],
+    ["🦏","rhinoceros animals nature animal mammal"],
+    ["🦐","shrimp animals nature animal marine"],
+    ["🦑","squid animals nature animal marine"],
+    ["🦒","giraffe face animals nature animal mammal"],
+    ["🦓","zebra face animals nature animal mammal"],
+    ["🦔","hedgehog animals nature animal mammal"],
+    ["🦕","sauropod animals nature animal reptile"],
+    ["🦖","t rex animals nature animal reptile"],
+    ["🦗","cricket animals nature animal bug"],
+    ["🦘","kangaroo animals nature animal mammal"],
+    ["🦙","llama animals nature animal mammal"],
+    ["🦚","peacock animals nature animal bird"],
+    ["🦛","hippopotamus animals nature animal mammal"],
+    ["🦜","parrot animals nature animal bird"],
+    ["🦝","raccoon animals nature animal mammal"],
+    ["🦞","lobster animals nature animal marine"],
+    ["🦟","mosquito animals nature animal bug"],
+    ["🦠","microbe animals nature animal bug"],
+    ["🦡","badger animals nature animal mammal"],
+    ["🦢","swan animals nature animal bird"],
+    ["🦣","mammoth animals nature animal mammal"],
+    ["🦤","dodo animals nature animal bird"],
+    ["🦥","sloth animals nature animal mammal"],
+    ["🦦","otter animals nature animal mammal"],
+    ["🦧","orangutan animals nature animal mammal"],
+    ["🦨","skunk animals nature animal mammal"],
+    ["🦩","flamingo animals nature animal bird"],
+    ["🦪","oyster animals nature animal marine"],
+    ["🦫","beaver animals nature animal mammal"],
+    ["🦬","bison animals nature animal mammal"],
+    ["🦭","seal animals nature animal marine"],
+    ["🦮","guide dog animals nature animal mammal"],
+    ["🦯","probing cane objects tool"],
+    ["🦴","bone people body body parts"],
+    ["🦵","leg people body body parts"],
+    ["🦶","foot people body body parts"],
+    ["🦷","tooth people body body parts"],
+    ["🦸‍♀️","female superhero people body person fantasy"],
+    ["🦸‍♂️","male superhero people body person fantasy"],
+    ["🦸","superhero people body person fantasy"],
+    ["🦹‍♀️","female supervillain people body person fantasy"],
+    ["🦹‍♂️","male supervillain people body person fantasy"],
+    ["🦹","supervillain people body person fantasy"],
+    ["🦺","safety vest objects clothing"],
+    ["🦻","ear with hearing aid people body body parts"],
+    ["🦼","motorized wheelchair travel places transport ground"],
+    ["🦽","manual wheelchair travel places transport ground"],
+    ["🦾","mechanical arm people body body parts"],
+    ["🦿","mechanical leg people body body parts"],
+    ["🧀","cheese wedge food drink food prepared"],
+    ["🧁","cupcake food drink food sweet"],
+    ["🧂","salt food drink food prepared"],
+    ["🧃","beverage box food drink drink"],
+    ["🧄","garlic food drink food vegetable"],
+    ["🧅","onion food drink food vegetable"],
+    ["🧆","falafel food drink food prepared"],
+    ["🧇","waffle food drink food prepared"],
+    ["🧈","butter food drink food prepared"],
+    ["🧉","mate drink food drink drink"],
+    ["🧊","ice cube food drink drink"],
+    ["🧋","bubble tea food drink drink"],
+    ["🧌","troll people body person fantasy"],
+    ["🧍‍♀️","woman standing people body person activity"],
+    ["🧍‍♂️","man standing people body person activity"],
+    ["🧍","standing person people body person activity"],
+    ["🧎‍♀️","woman kneeling people body person activity"],
+    ["🧎‍♀️‍➡️","woman kneeling facing right people body person activity"],
+    ["🧎‍♂️","man kneeling people body person activity"],
+    ["🧎‍♂️‍➡️","man kneeling facing right people body person activity"],
+    ["🧎‍➡️","person kneeling facing right people body person activity"],
+    ["🧎","kneeling person people body person activity"],
+    ["🧏‍♀️","deaf woman people body person gesture"],
+    ["🧏‍♂️","deaf man people body person gesture"],
+    ["🧏","deaf person people body person gesture"],
+    ["🧐","face with monocle smileys emotion face glasses"],
+    ["🧑‍🌾","farmer people body person role"],
+    ["🧑‍🍳","cook people body person role"],
+    ["🧑‍🍼","person feeding baby people body person role"],
+    ["🧑‍🎄","mx claus people body person fantasy"],
+    ["🧑‍🎓","student people body person role"],
+    ["🧑‍🎤","singer people body person role"],
+    ["🧑‍🎨","artist people body person role"],
+    ["🧑‍🏫","teacher people body person role"],
+    ["🧑‍🏭","factory worker people body person role"],
+    ["🧑‍💻","technologist people body person role"],
+    ["🧑‍💼","office worker people body person role"],
+    ["🧑‍🔧","mechanic people body person role"],
+    ["🧑‍🔬","scientist people body person role"],
+    ["🧑‍🚀","astronaut people body person role"],
+    ["🧑‍🚒","firefighter people body person role"],
+    ["🧑‍🤝‍🧑","people holding hands people body family"],
+    ["🧑‍🦯‍➡️","person with white cane facing right people body person activity"],
+    ["🧑‍🦯","person with probing cane people body person activity"],
+    ["🧑‍🦰","red haired person people body person"],
+    ["🧑‍🦱","curly haired person people body person"],
+    ["🧑‍🦲","bald person people body person"],
+    ["🧑‍🦳","white haired person people body person"],
+    ["🧑‍🦼‍➡️","person in motorized wheelchair facing right people body person activity"],
+    ["🧑‍🦼","person in motorized wheelchair people body person activity"],
+    ["🧑‍🦽‍➡️","person in manual wheelchair facing right people body person activity"],
+    ["🧑‍🦽","person in manual wheelchair people body person activity"],
+    ["🧑‍🧑‍🧒","family adult adult child people body person symbol"],
+    ["🧑‍🧑‍🧒‍🧒","family adult adult child child people body person symbol"],
+    ["🧑‍🧒‍🧒","family adult child child people body person symbol"],
+    ["🧑‍🧒","family adult child people body person symbol"],
+    ["🧑‍⚕️","health worker people body person role"],
+    ["🧑‍⚖️","judge people body person role"],
+    ["🧑‍✈️","pilot people body person role"],
+    ["🧑","adult people body person"],
+    ["🧒","child people body person"],
+    ["🧓","older adult people body person"],
+    ["🧔‍♀️","woman with beard people body person"],
+    ["🧔‍♂️","man with beard people body person"],
+    ["🧔","bearded person people body person"],
+    ["🧕","person with headscarf people body person role"],
+    ["🧖‍♀️","woman in steamy room people body person activity"],
+    ["🧖‍♂️","man in steamy room people body person activity"],
+    ["🧖","person in steamy room people body person activity"],
+    ["🧗‍♀️","woman climbing people body person activity"],
+    ["🧗‍♂️","man climbing people body person activity"],
+    ["🧗","person climbing people body person activity exercise workout"],
+    ["🧘‍♀️","woman in lotus position people body person resting"],
+    ["🧘‍♂️","man in lotus position people body person resting"],
+    ["🧘","person in lotus position people body person resting meditate meditation"],
+    ["🧙‍♀️","female mage people body person fantasy"],
+    ["🧙‍♂️","male mage people body person fantasy"],
+    ["🧙","mage people body person fantasy"],
+    ["🧚‍♀️","female fairy people body person fantasy"],
+    ["🧚‍♂️","male fairy people body person fantasy"],
+    ["🧚","fairy people body person fantasy"],
+    ["🧛‍♀️","female vampire people body person fantasy"],
+    ["🧛‍♂️","male vampire people body person fantasy"],
+    ["🧛","vampire people body person fantasy"],
+    ["🧜‍♀️","mermaid people body person fantasy"],
+    ["🧜‍♂️","merman people body person fantasy"],
+    ["🧜","merperson people body person fantasy"],
+    ["🧝‍♀️","female elf people body person fantasy"],
+    ["🧝‍♂️","male elf people body person fantasy"],
+    ["🧝","elf people body person fantasy"],
+    ["🧞‍♀️","female genie people body person fantasy"],
+    ["🧞‍♂️","male genie people body person fantasy"],
+    ["🧞","genie people body person fantasy"],
+    ["🧟‍♀️","female zombie people body person fantasy"],
+    ["🧟‍♂️","male zombie people body person fantasy"],
+    ["🧟","zombie people body person fantasy"],
+    ["🧠","brain people body body parts study learn think"],
+    ["🧡","orange heart smileys emotion heart"],
+    ["🧢","billed cap objects clothing"],
+    ["🧣","scarf objects clothing"],
+    ["🧤","gloves objects clothing"],
+    ["🧥","coat objects clothing"],
+    ["🧦","socks objects clothing"],
+    ["🧧","red envelope activities event"],
+    ["🧨","firecracker activities event"],
+    ["🧩","jigsaw activities game"],
+    ["🧪","test tube objects science"],
+    ["🧫","petri dish objects science"],
+    ["🧬","dna objects science"],
+    ["🧭","compass travel places place map"],
+    ["🧮","abacus objects computer"],
+    ["🧯","fire extinguisher objects household"],
+    ["🧰","toolbox objects tool"],
+    ["🧱","bricks travel places place building"],
+    ["🧲","magnet objects tool"],
+    ["🧳","luggage travel places hotel"],
+    ["🧴","lotion bottle objects household clean chore"],
+    ["🧵","thread activities arts crafts"],
+    ["🧶","yarn activities arts crafts"],
+    ["🧷","safety pin objects household"],
+    ["🧸","teddy bear activities game"],
+    ["🧹","broom objects household clean chore"],
+    ["🧺","basket objects household clean chore laundry"],
+    ["🧻","roll of paper objects household"],
+    ["🧼","soap objects household clean chore"],
+    ["🧽","sponge objects household clean chore"],
+    ["🧾","receipt objects money"],
+    ["🧿","nazar amulet objects other object"],
+    ["🩰","ballet shoes objects clothing"],
+    ["🩱","one piece swimsuit objects clothing"],
+    ["🩲","briefs objects clothing"],
+    ["🩳","shorts objects clothing"],
+    ["🩴","thong sandal objects clothing"],
+    ["🩵","light blue heart smileys emotion heart"],
+    ["🩶","grey heart smileys emotion heart"],
+    ["🩷","pink heart smileys emotion heart"],
+    ["🩸","drop of blood objects medical"],
+    ["🩹","adhesive bandage objects medical"],
+    ["🩺","stethoscope objects medical"],
+    ["🩻","x ray objects medical"],
+    ["🩼","crutch objects medical"],
+    ["🪀","yo yo activities game"],
+    ["🪁","kite activities game"],
+    ["🪂","parachute travel places transport air"],
+    ["🪃","boomerang objects tool"],
+    ["🪄","magic wand activities game"],
+    ["🪅","pinata activities game"],
+    ["🪆","nesting dolls activities game"],
+    ["🪇","maracas objects musical instrument"],
+    ["🪈","flute objects musical instrument"],
+    ["🪉","harp objects musical instrument"],
+    ["🪏","shovel objects tool"],
+    ["🪐","ringed planet travel places sky weather"],
+    ["🪑","chair objects household"],
+    ["🪒","razor objects household"],
+    ["🪓","axe objects tool"],
+    ["🪔","diya lamp objects light video"],
+    ["🪕","banjo objects musical instrument"],
+    ["🪖","military helmet objects clothing"],
+    ["🪗","accordion objects musical instrument"],
+    ["🪘","long drum objects musical instrument"],
+    ["🪙","coin objects money"],
+    ["🪚","carpentry saw objects tool"],
+    ["🪛","screwdriver objects tool"],
+    ["🪜","ladder objects tool"],
+    ["🪝","hook objects tool"],
+    ["🪞","mirror objects household"],
+    ["🪟","window objects household"],
+    ["🪠","plunger objects household"],
+    ["🪡","sewing needle activities arts crafts"],
+    ["🪢","knot activities arts crafts"],
+    ["🪣","bucket objects household clean chore"],
+    ["🪤","mouse trap objects household"],
+    ["🪥","toothbrush objects household"],
+    ["🪦","headstone objects other object"],
+    ["🪧","placard objects other object"],
+    ["🪨","rock travel places place building"],
+    ["🪩","mirror ball activities game"],
+    ["🪪","identification card objects other object"],
+    ["🪫","low battery objects computer"],
+    ["🪬","hamsa objects other object"],
+    ["🪭","folding hand fan objects clothing"],
+    ["🪮","hair pick objects clothing"],
+    ["🪯","khanda symbols religion"],
+    ["🪰","fly animals nature animal bug"],
+    ["🪱","worm animals nature animal bug"],
+    ["🪲","beetle animals nature animal bug"],
+    ["🪳","cockroach animals nature animal bug"],
+    ["🪴","potted plant animals nature plant other"],
+    ["🪵","wood travel places place building"],
+    ["🪶","feather animals nature animal bird"],
+    ["🪷","lotus animals nature plant flower"],
+    ["🪸","coral animals nature animal marine"],
+    ["🪹","empty nest animals nature plant other"],
+    ["🪺","nest with eggs animals nature plant other"],
+    ["🪻","hyacinth animals nature plant flower"],
+    ["🪼","jellyfish animals nature animal marine"],
+    ["🪽","wing animals nature animal bird"],
+    ["🪾","leafless tree animals nature plant other"],
+    ["🪿","goose animals nature animal bird"],
+    ["🫀","anatomical heart people body body parts"],
+    ["🫁","lungs people body body parts"],
+    ["🫂","people hugging people body person symbol"],
+    ["🫃","pregnant man people body person role"],
+    ["🫄","pregnant person people body person role"],
+    ["🫅","person with crown people body person role"],
+    ["🫆","fingerprint people body person symbol"],
+    ["🫎","moose animals nature animal mammal"],
+    ["🫏","donkey animals nature animal mammal"],
+    ["🫐","blueberries food drink food fruit"],
+    ["🫑","bell pepper food drink food vegetable"],
+    ["🫒","olive food drink food fruit"],
+    ["🫓","flatbread food drink food prepared"],
+    ["🫔","tamale food drink food prepared"],
+    ["🫕","fondue food drink food prepared"],
+    ["🫖","teapot food drink drink"],
+    ["🫗","pouring liquid food drink drink"],
+    ["🫘","beans food drink food vegetable"],
+    ["🫙","jar food drink dishware"],
+    ["🫚","ginger root food drink food vegetable"],
+    ["🫛","pea pod food drink food vegetable"],
+    ["🫜","root vegetable food drink food vegetable"],
+    ["🫟","splatter symbols other symbol"],
+    ["🫠","melting face smileys emotion face smiling"],
+    ["🫡","saluting face smileys emotion face hand"],
+    ["🫢","face with open eyes and hand over mouth smileys emotion face hand"],
+    ["🫣","face with peeking eye smileys emotion face hand"],
+    ["🫤","face with diagonal mouth smileys emotion face concerned"],
+    ["🫥","dotted line face smileys emotion face neutral skeptical"],
+    ["🫦","biting lip people body body parts"],
+    ["🫧","bubbles objects household"],
+    ["🫨","shaking face smileys emotion face neutral skeptical"],
+    ["🫩","face with bags under eyes smileys emotion face sleepy"],
+    ["🫰","hand with index finger and thumb crossed people body hand fingers partial"],
+    ["🫱","rightwards hand people body hand fingers open"],
+    ["🫲","leftwards hand people body hand fingers open"],
+    ["🫳","palm down hand people body hand fingers open"],
+    ["🫴","palm up hand people body hand fingers open"],
+    ["🫵","index pointing at the viewer people body hand single finger"],
+    ["🫶","heart hands people body hands"],
+    ["🫷","leftwards pushing hand people body hand fingers open"],
+    ["🫸","rightwards pushing hand people body hand fingers open"],
+    ["‼️","bangbang symbols punctuation"],
+    ["⁉️","interrobang symbols punctuation"],
+    ["™️","tm symbols other symbol"],
+    ["ℹ️","information source symbols alphanum"],
+    ["↔️","left right arrow symbols arrow"],
+    ["↕️","arrow up down symbols arrow"],
+    ["↖️","arrow upper left symbols arrow"],
+    ["↗️","arrow upper right symbols arrow"],
+    ["↘️","arrow lower right symbols arrow"],
+    ["↙️","arrow lower left symbols arrow"],
+    ["↩️","leftwards arrow with hook symbols arrow"],
+    ["↪️","arrow right hook symbols arrow"],
+    ["⌚","watch travel places time"],
+    ["⌛","hourglass travel places time"],
+    ["⌨️","keyboard objects computer"],
+    ["⏏️","eject symbols av symbol"],
+    ["⏩","fast forward symbols av symbol"],
+    ["⏪","rewind symbols av symbol"],
+    ["⏫","arrow double up symbols av symbol"],
+    ["⏬","arrow double down symbols av symbol"],
+    ["⏭️","black right pointing double triangle with vertical bar symbols av symbol"],
+    ["⏮️","black left pointing double triangle with vertical bar symbols av symbol"],
+    ["⏯️","black right pointing triangle with double vertical bar symbols av symbol"],
+    ["⏰","alarm clock travel places time"],
+    ["⏱️","stopwatch travel places time"],
+    ["⏲️","timer clock travel places time"],
+    ["⏳","hourglass flowing sand travel places time"],
+    ["⏸️","double vertical bar symbols av symbol"],
+    ["⏹️","black square for stop symbols av symbol"],
+    ["⏺️","black circle for record symbols av symbol"],
+    ["Ⓜ️","m symbols alphanum"],
+    ["▪️","black small square symbols geometric"],
+    ["▫️","white small square symbols geometric"],
+    ["▶️","arrow forward symbols av symbol"],
+    ["◀️","arrow backward symbols av symbol"],
+    ["◻️","white medium square symbols geometric"],
+    ["◼️","black medium square symbols geometric"],
+    ["◽","white medium small square symbols geometric"],
+    ["◾","black medium small square symbols geometric"],
+    ["☀️","sunny travel places sky weather"],
+    ["☁️","cloud travel places sky weather"],
+    ["☂️","umbrella travel places sky weather"],
+    ["☃️","snowman travel places sky weather"],
+    ["☄️","comet travel places sky weather"],
+    ["☎️","phone telephone objects phone"],
+    ["☑️","ballot box with check symbols other symbol"],
+    ["☔","umbrella with rain drops travel places sky weather"],
+    ["☕","coffee food drink drink"],
+    ["☘️","shamrock animals nature plant other"],
+    ["☝️","point up people body hand single finger"],
+    ["☠️","skull and crossbones smileys emotion face negative"],
+    ["☢️","radioactive sign symbols warning"],
+    ["☣️","biohazard sign symbols warning"],
+    ["☦️","orthodox cross symbols religion"],
+    ["☪️","star and crescent symbols religion"],
+    ["☮️","peace symbol symbols religion"],
+    ["☯️","yin yang symbols religion"],
+    ["☸️","wheel of dharma symbols religion"],
+    ["☹️","white frowning face smileys emotion face concerned"],
+    ["☺️","relaxed smileys emotion face affection"],
+    ["♀️","female sign symbols gender"],
+    ["♂️","male sign symbols gender"],
+    ["♈","aries symbols zodiac"],
+    ["♉","taurus symbols zodiac"],
+    ["♊","gemini symbols zodiac"],
+    ["♋","cancer symbols zodiac"],
+    ["♌","leo symbols zodiac"],
+    ["♍","virgo symbols zodiac"],
+    ["♎","libra symbols zodiac"],
+    ["♏","scorpius symbols zodiac"],
+    ["♐","sagittarius symbols zodiac"],
+    ["♑","capricorn symbols zodiac"],
+    ["♒","aquarius symbols zodiac"],
+    ["♓","pisces symbols zodiac"],
+    ["♟️","chess pawn activities game"],
+    ["♠️","spades activities game"],
+    ["♣️","clubs activities game"],
+    ["♥️","hearts activities game"],
+    ["♦️","diamonds activities game"],
+    ["♨️","hotsprings travel places place other"],
+    ["♻️","recycle symbols other symbol"],
+    ["♾️","infinity symbols math"],
+    ["♿","wheelchair symbols transport sign"],
+    ["⚒️","hammer and pick objects tool"],
+    ["⚓","anchor travel places transport water"],
+    ["⚔️","crossed swords objects tool"],
+    ["⚕️","medical symbol staff of aesculapius symbols other symbol"],
+    ["⚖️","scales objects tool"],
+    ["⚗️","alembic objects science"],
+    ["⚙️","gear objects tool"],
+    ["⚛️","atom symbol symbols religion"],
+    ["⚜️","fleur de lis symbols other symbol"],
+    ["⚠️","warning symbols warning"],
+    ["⚡","zap travel places sky weather"],
+    ["⚧️","transgender symbol symbols gender"],
+    ["⚪","white circle symbols geometric"],
+    ["⚫","black circle symbols geometric"],
+    ["⚰️","coffin objects other object"],
+    ["⚱️","funeral urn objects other object"],
+    ["⚽","soccer activities sport"],
+    ["⚾","baseball activities sport"],
+    ["⛄","snowman without snow travel places sky weather"],
+    ["⛅","partly sunny travel places sky weather"],
+    ["⛈️","thunder cloud and rain travel places sky weather"],
+    ["⛎","ophiuchus symbols zodiac"],
+    ["⛏️","pick objects tool"],
+    ["⛑️","helmet with white cross objects clothing"],
+    ["⛓️‍💥","broken chain objects tool"],
+    ["⛓️","chains objects tool"],
+    ["⛔","no entry symbols warning"],
+    ["⛩️","shinto shrine travel places place religious"],
+    ["⛪","church travel places place religious"],
+    ["⛰️","mountain travel places place geographic"],
+    ["⛱️","umbrella on ground travel places sky weather"],
+    ["⛲","fountain travel places place other"],
+    ["⛳","golf activities sport"],
+    ["⛴️","ferry travel places transport water"],
+    ["⛵","boat sailboat travel places transport water"],
+    ["⛷️","skier people body person sport"],
+    ["⛸️","ice skate activities sport"],
+    ["⛹️‍♀️","woman bouncing ball people body person sport"],
+    ["⛹️‍♂️","man bouncing ball people body person sport"],
+    ["⛹️","person with ball people body person sport"],
+    ["⛺","tent travel places place other"],
+    ["⛽","fuelpump travel places transport ground"],
+    ["✂️","scissors objects office"],
+    ["✅","white check mark symbols other symbol habit tracker done"],
+    ["✈️","airplane travel places transport air"],
+    ["✉️","email envelope objects mail"],
+    ["✊","fist people body hand fingers closed"],
+    ["✋","hand raised hand people body hand fingers open"],
+    ["✌️","v people body hand fingers partial"],
+    ["✍️","writing hand people body hand prop journal write"],
+    ["✏️","pencil2 objects writing study write"],
+    ["✒️","black nib objects writing"],
+    ["✔️","heavy check mark symbols other symbol"],
+    ["✖️","heavy multiplication x symbols math"],
+    ["✝️","latin cross symbols religion"],
+    ["✡️","star of david symbols religion"],
+    ["✨","sparkles activities event"],
+    ["✳️","eight spoked asterisk symbols other symbol"],
+    ["✴️","eight pointed black star symbols other symbol"],
+    ["❄️","snowflake travel places sky weather"],
+    ["❇️","sparkle symbols other symbol"],
+    ["❌","x symbols other symbol"],
+    ["❎","negative squared cross mark symbols other symbol"],
+    ["❓","question symbols punctuation"],
+    ["❔","grey question symbols punctuation"],
+    ["❕","grey exclamation symbols punctuation"],
+    ["❗","exclamation heavy exclamation mark symbols punctuation"],
+    ["❣️","heavy heart exclamation mark ornament smileys emotion heart"],
+    ["❤️‍🔥","heart on fire smileys emotion heart"],
+    ["❤️‍🩹","mending heart smileys emotion heart"],
+    ["❤️","heart smileys emotion heart"],
+    ["➕","heavy plus sign symbols math"],
+    ["➖","heavy minus sign symbols math"],
+    ["➗","heavy division sign symbols math"],
+    ["➡️","arrow right symbols arrow"],
+    ["➰","curly loop symbols other symbol"],
+    ["➿","loop symbols other symbol"],
+    ["⤴️","arrow heading up symbols arrow"],
+    ["⤵️","arrow heading down symbols arrow"],
+    ["⬅️","arrow left symbols arrow"],
+    ["⬆️","arrow up symbols arrow"],
+    ["⬇️","arrow down symbols arrow"],
+    ["⬛","black large square symbols geometric"],
+    ["⬜","white large square symbols geometric"],
+    ["⭐","star travel places sky weather habit goal favorite"],
+    ["⭕","o symbols other symbol"],
+    ["〰️","wavy dash symbols punctuation"],
+    ["〽️","part alternation mark symbols other symbol"],
+    ["㊗️","congratulations symbols alphanum"],
+    ["㊙️","secret symbols alphanum"]
+  ];
+
+  function defaultConfig(){
+    return {
+      habits: [
+        { id: uid(), name: "Journal", icon: "\uD83D\uDCD3", type: "check" },
+        { id: uid(), name: "Read", icon: "\uD83D\uDCDA", type: "check" },
+        { id: uid(), name: "Workout", icon: "\uD83C\uDFCB\uFE0F", type: "check" },
+        { id: uid(), name: "Make Bed", icon: "\uD83D\uDECF\uFE0F", type: "check" },
+        { id: uid(), name: "Wake Up", icon: "\u23F0", type: "time", target: "", rule: "before" },
+        { id: uid(), name: "Bedtime", icon: "\uD83C\uDF19", type: "time", target: "", rule: "before" }
+      ]
+    };
+  }
+
+  function getNow(){ return new Date(); }
+
+  var state = {
+    year: getNow().getFullYear(),
+    month: getNow().getMonth(),
+    config: null,
+    entries: {},
+    loading: true,
+    addPanelOpen: false,
+    editingHabitId: null,
+    rhythmFilter: null,
+    rhythmDropdownOpen: false,
+    rhythmView: "month",
+    yearEntries: null,
+    yearEntriesYear: null,
+    yearLoading: false,
+    exportMenuOpen: false,
+    exportStatus: null,
+    pendingImportData: null,
+    confirmImportOpen: false,
+    colorEditorOpen: false,
+    emojiPickerOpen: false,
+    emojiSearchQuery: "",
+    pendingIconValue: null,
+    confirmRemoveId: null,
+    confirmResetOpen: false,
+    error: null
+  };
+
+  // ---------- storage ----------
+
+  function loadConfig(){
+    return store.get(CONFIG_KEY).then(function(res){
+      return res ? JSON.parse(res.value) : defaultConfig();
+    }).catch(function(){
+      return defaultConfig();
+    });
+  }
+
+  function saveConfig(){
+    return store.set(CONFIG_KEY, JSON.stringify(state.config)).catch(function(e){
+      console.error("Failed to save config", e);
+    });
+  }
+
+  function loadEntries(y,m){
+    return store.get(entriesKey(y,m)).then(function(res){
+      return res ? JSON.parse(res.value) : {};
+    }).catch(function(){
+      return {};
+    });
+  }
+
+  function loadYearEntries(y){
+    var jobs = [];
+    for (var m = 0; m < 12; m++){
+      jobs.push(loadEntries(y, m));
+    }
+    return Promise.all(jobs).then(function(results){
+      var map = {};
+      for (var m2 = 0; m2 < 12; m2++){ map[m2] = results[m2]; }
+      return map;
+    });
+  }
+
+  function ensureYearEntriesLoaded(){
+    if (state.yearEntriesYear === state.year && state.yearEntries) return;
+    state.yearLoading = true;
+    loadYearEntries(state.year).then(function(map){
+      state.yearEntries = map;
+      state.yearEntriesYear = state.year;
+      state.yearLoading = false;
+      render();
+    });
+  }
+
+  // ---------- export ----------
+
+  function collectAllStoredMonths(){
+    return store.list("habit-ledger:entries:").then(function(listResult){
+      var keys = (listResult && listResult.keys) || [];
+      var monthEntries = {};
+      return Promise.all(keys.map(function(k){
+        var keyStr = typeof k === "string" ? k : ((k && k.key) || "");
+        if (!keyStr) return null;
+        return store.get(keyStr).then(function(res){
+          var mk = keyStr.replace("habit-ledger:entries:", "");
+          monthEntries[mk] = res ? JSON.parse(res.value) : {};
+        }).catch(function(){
+          monthEntries[keyStr.replace("habit-ledger:entries:", "")] = {};
+        });
+      })).then(function(){ return monthEntries; });
+    }).catch(function(e){
+      console.error("Failed to list stored months for export", e);
+      return {};
+    });
+  }
+
+  function csvEscape(value){
+    var s = String(value === undefined || value === null ? "" : value);
+    if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function buildExportRows(habits, monthEntries){
+    var header = ["Day", "Date", "Score"].concat(habits.map(function(h){ return h.name; }));
+    var rows = [header];
+    Object.keys(monthEntries).sort().forEach(function(mk){
+      var parts = mk.split("-");
+      var y = Number(parts[0]), m = Number(parts[1]) - 1;
+      if (isNaN(y) || isNaN(m)) return;
+      var n = daysInMonth(y, m);
+      var entries = monthEntries[mk] || {};
+      for (var d = 1; d <= n; d++){
+        var dk = dateKeyOf(y, m, d);
+        var dayEntry = entries[dk] || {};
+        var dateObj = new Date(y, m, d);
+        var res = scoreForEntry(dayEntry);
+        var row = [dateObj.toLocaleDateString("en-US", { weekday: "long" }), dk, res.score + "/" + res.max];
+        habits.forEach(function(h){
+          var v = dayEntry[h.id];
+          if (h.type === "check"){
+            row.push(v ? "TRUE" : "FALSE");
+          } else if (v === undefined || v === null || v === ""){
+            row.push("");
+          } else if (h.type === "time"){
+            row.push(formatTime12(v));
+          } else {
+            row.push(String(v));
+          }
+        });
+        rows.push(row);
+      }
+    });
+    return rows;
+  }
+
+  function downloadBlob(content, mimeType, filename){
+    var blob = new Blob([content], { type: mimeType });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function showExportStatus(msg){
+    state.exportStatus = msg;
+    render();
+    setTimeout(function(){
+      if (state.exportStatus === msg){ state.exportStatus = null; render(); }
+    }, 5000);
+  }
+
+  function runExport(format){
+    showExportStatus("Preparing export\u2026");
+    collectAllStoredMonths().then(function(monthEntries){
+      monthEntries[monthKey(state.year, state.month)] = state.entries;
+      var habits = state.config.habits;
+
+      if (format === "json"){
+        var payload = {
+          exportedAt: new Date().toISOString(),
+          config: state.config,
+          entries: monthEntries
+        };
+        downloadBlob(JSON.stringify(payload, null, 2), "application/json", "habit-tracker-export.json");
+        showExportStatus("Exported habit-tracker-export.json");
+        return;
+      }
+
+      var rows = buildExportRows(habits, monthEntries);
+
+      if (format === "csv"){
+        var csv = rows.map(function(row){ return row.map(csvEscape).join(","); }).join("\r\n");
+        downloadBlob(csv, "text/csv", "habit-tracker-export.csv");
+        showExportStatus("Exported habit-tracker-export.csv \u2014 import into Sheets or Notion");
+        return;
+      }
+
+      if (format === "xlsx"){
+        if (typeof XLSX === "undefined"){
+          showExportStatus("Excel export unavailable right now \u2014 try CSV instead");
+          return;
+        }
+        var ws = XLSX.utils.aoa_to_sheet(rows);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Habit Tracker");
+        XLSX.writeFile(wb, "habit-tracker-export.xlsx");
+        showExportStatus("Exported habit-tracker-export.xlsx");
+      }
+    }).catch(function(e){
+      console.error("Export failed", e);
+      showExportStatus("Export failed \u2014 please try again");
+    });
+  }
+
+  // ---------- import ----------
+
+  function handleImportFile(file){
+    if (!file) return Promise.resolve();
+    showExportStatus("Reading file\u2026");
+    return file.text().then(function(text){
+      var data;
+      try {
+        data = JSON.parse(text);
+      } catch (e){
+        showExportStatus("That file isn\u2019t valid JSON \u2014 import cancelled");
+        return;
+      }
+      // Accept both the current export shape (config + entries) and the
+      // older shape (habits + entries) from before colors were included.
+      var config = data.config || (data.habits ? { habits: data.habits } : null);
+      if (!config || !Array.isArray(config.habits) || typeof data.entries !== "object" || !data.entries){
+        showExportStatus("That doesn\u2019t look like a habit tracker backup \u2014 import cancelled");
+        return;
+      }
+      state.pendingImportData = { config: config, entries: data.entries };
+      state.confirmImportOpen = true;
+      render();
+    }).catch(function(e){
+      console.error("Failed to read import file", e);
+      showExportStatus("Couldn\u2019t read that file \u2014 import cancelled");
+    });
+  }
+
+  function applyImport(){
+    var data = state.pendingImportData;
+    if (!data) return;
+    state.confirmImportOpen = false;
+    state.pendingImportData = null;
+
+    // Update what's on screen immediately, the same way every other change
+    // in this app works (check a box, edit a habit) - the visible result
+    // never waits on a network round trip first. Persisting to storage
+    // happens afterward, in the background; a slow or flaky write there
+    // shouldn't stall or partially apply what you see.
+    state.config = data.config;
+    state.rhythmFilter = null;
+    state.yearEntries = null;
+    state.yearEntriesYear = null;
+    var curKey = monthKey(state.year, state.month);
+    state.entries = data.entries[curKey] || {};
+    render();
+    showExportStatus("Backup restored");
+
+    saveConfig();
+    var monthKeys = Object.keys(data.entries);
+    monthKeys.forEach(function(mk){
+      store.set("habit-ledger:entries:" + mk, JSON.stringify(data.entries[mk])).catch(function(e){
+        console.error("Failed to persist imported month " + mk, e);
+      });
+    });
+  }
+
+  // ---------- share ----------
+
+  function buildShareText(){
+    var n = daysInMonth(state.year, state.month);
+    var elapsed = relevantDaysElapsed(state.year, state.month) || 1;
+    var lines = [];
+    state.config.habits.forEach(function(h){
+      var isGoal = h.type === "check" || (h.type === "time" && h.target) || (h.type === "number" && hasNumberTarget(h));
+      if (!isGoal) return;
+      var count = 0;
+      for (var d = 1; d <= n; d++){
+        var dk = dateKeyOf(state.year, state.month, d);
+        var entry = state.entries[dk] || {};
+        if (isHabitDoneForDay(h, entry)) count++;
+      }
+      lines.push(h.icon + " " + h.name + ": " + count + "/" + elapsed);
+    });
+    var header = "\uD83D\uDCCA My " + MONTH_NAMES[state.month] + " " + state.year + " habit tracker:";
+    if (!lines.length) return header + "\nNo goal habits tracked yet.";
+    return header + "\n" + lines.join("\n");
+  }
+
+  function buildSnapshotHtml(){
+    var y = state.year, m = state.month;
+    var n = daysInMonth(y, m);
+    var firstWeekday = new Date(y, m, 1).getDay();
+    var elapsed = relevantDaysElapsed(y, m) || 1;
+
+    var cellsHtml = "";
+    for (var i = 0; i < firstWeekday; i++){ cellsHtml += '<div class="cell empty"></div>'; }
+    for (var d = 1; d <= n; d++){
+      var dk = dateKeyOf(y, m, d);
+      var entry = state.entries[dk] || {};
+      var res = scoreForEntry(entry);
+      var color = colorForScore(res.score);
+      cellsHtml += '<div class="cell" style="background:' + color + '" title="' + res.score + '/' + res.max + ' habits met">' + d + '</div>';
+    }
+
+    var habitRows = state.config.habits.map(function(h){
+      var isGoal = h.type === "check" || (h.type === "time" && h.target) || (h.type === "number" && hasNumberTarget(h));
+      if (!isGoal) return "";
+      var count = 0;
+      for (var d2 = 1; d2 <= n; d2++){
+        var dk2 = dateKeyOf(y, m, d2);
+        if (isHabitDoneForDay(h, state.entries[dk2] || {})) count++;
+      }
+      var pct = Math.round((count / elapsed) * 100);
+      return '<tr><td class="hname">' + h.icon + ' ' + escapeHtml(h.name) + '</td>' +
+        '<td class="hcount">' + count + ' / ' + elapsed + '</td>' +
+        '<td class="hbar"><div class="hbar-track"><div class="hbar-fill" style="width:' + Math.min(pct,100) + '%"></div></div></td></tr>';
+    }).join("");
+
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+      '<title>Habit Tracker \u2014 ' + MONTH_NAMES[m] + ' ' + y + '</title>' +
+      '<style>' +
+        'body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#F1F1EE;color:#1D2120;padding:32px 20px;max-width:480px;margin:0 auto;}' +
+        'h1{font-size:22px;margin:0 0 2px;}' +
+        'p.sub{color:#5C6360;font-size:13px;margin:0 0 24px;}' +
+        '.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:28px;}' +
+        '.cell{aspect-ratio:1/1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;}' +
+        '.cell.empty{background:transparent;}' +
+        'table{width:100%;border-collapse:collapse;font-size:14px;}' +
+        'td{padding:9px 4px;border-bottom:1px solid #DADBD7;vertical-align:middle;}' +
+        '.hname{white-space:nowrap;}' +
+        '.hcount{white-space:nowrap;text-align:right;padding-right:10px;color:#2C3E2E;font-weight:600;}' +
+        '.hbar{width:40%;}' +
+        '.hbar-track{height:6px;background:#DADBD7;border-radius:4px;overflow:hidden;}' +
+        '.hbar-fill{height:100%;background:#268A4E;}' +
+        '.footer{margin-top:24px;font-size:11px;color:#8D9390;}' +
+      '</style></head><body>' +
+      '<h1>' + MONTH_NAMES[m] + ' ' + y + '</h1>' +
+      '<p class="sub">Shared snapshot from a habit tracker</p>' +
+      '<div class="grid">' + cellsHtml + '</div>' +
+      '<table>' + habitRows + '</table>' +
+      '<p class="footer">This is a read-only snapshot from ' + new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) + ' \u2014 it won\u2019t update after sharing.</p>' +
+      '</body></html>';
+  }
+
+  function shareSnapshot(){
+    var html = buildSnapshotHtml();
+    var filename = "habit-tracker-" + monthKey(state.year, state.month) + ".html";
+    var file = null;
+    try { file = new File([html], filename, { type: "text/html" }); } catch(e){ file = null; }
+
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })){
+      navigator.share({ files: [file], title: "Habit Tracker", text: buildShareText() }).catch(function(err){
+        if (err && err.name === "AbortError") return;
+        downloadBlob(html, "text/html", filename);
+        showExportStatus("Downloaded " + filename + " \u2014 share it from your files app");
+      });
+    } else {
+      downloadBlob(html, "text/html", filename);
+      showExportStatus("Downloaded " + filename + " \u2014 share it from your files app");
+    }
+  }
+
+  function syncYearCache(){
+    if (state.yearEntriesYear === state.year && state.yearEntries){
+      state.yearEntries = Object.assign({}, state.yearEntries);
+      state.yearEntries[state.month] = state.entries;
+    }
+  }
+
+  function saveEntries(){
+    return store.set(entriesKey(state.year, state.month), JSON.stringify(state.entries)).catch(function(e){
+      console.error("Failed to save entries", e);
+    });
+  }
+
+  // ---------- derived data ----------
+
+  function checkHabits(){
+    return state.config.habits.filter(function(h){ return h.type === "check"; });
+  }
+
+  // habits that can be "met" or "missed" on a given day: plain checkboxes,
+  // plus time habits that have an optimal target time set
+  function goalHabits(){
+    return state.config.habits.filter(function(h){
+      return h.type === "check" || (h.type === "time" && h.target) || (h.type === "number" && hasNumberTarget(h));
+    });
+  }
+
+  function hasNumberTarget(h){
+    return h.target !== undefined && h.target !== null && h.target !== "" && !isNaN(Number(h.target));
+  }
+
+  function isHabitDoneForDay(h, dayEntry){
+    if (h.type === "check") return !!dayEntry[h.id];
+    if (h.type === "time" && h.target){
+      var val = dayEntry[h.id];
+      if (!val) return false;
+      var t = timeToMinutes(h.target);
+      var a = timeToMinutes(val);
+      if (t === null || a === null) return false;
+      // treat the night as continuous so a target of e.g. 11pm and an
+      // actual time just after midnight still compare correctly
+      if (t >= 720 && a < 720) a += 1440;
+      else if (a >= 720 && t < 720) t += 1440;
+      var diff = a - t;
+      return h.rule === "after" ? diff >= 0 : diff <= 0;
+    }
+    if (h.type === "number" && hasNumberTarget(h)){
+      var nval = dayEntry[h.id];
+      if (nval === undefined || nval === null || nval === "") return false;
+      var num = Number(nval), targetNum = Number(h.target);
+      if (isNaN(num) || isNaN(targetNum)) return false;
+      return h.rule === "below" ? num <= targetNum : num >= targetNum;
+    }
+    return false;
+  }
+
+  function scoreForEntry(dayEntry){
+    var goals = goalHabits();
+    var score = goals.reduce(function(acc,h){ return acc + (isHabitDoneForDay(h, dayEntry) ? 1 : 0); }, 0);
+    return { score: score, max: goals.length };
+  }
+
+  function scoreForDate(dk){
+    return scoreForEntry(state.entries[dk] || {}).score;
+  }
+
+  function maxScore(){ return goalHabits().length; }
+
+  function relevantDaysElapsed(y,m){
+    var n = getNow();
+    var isPast = (y < n.getFullYear()) || (y === n.getFullYear() && m < n.getMonth());
+    var isCurrent = (y === n.getFullYear() && m === n.getMonth());
+    if (isPast) return daysInMonth(y,m);
+    if (isCurrent) return n.getDate();
+    return 0;
+  }
+
+  // ---------- actions ----------
+
+  function toggleHabit(dk, habitId){
+    var day = state.entries[dk] ? Object.assign({}, state.entries[dk]) : {};
+    day[habitId] = !day[habitId];
+    state.entries = Object.assign({}, state.entries);
+    state.entries[dk] = day;
+    syncYearCache();
+    saveEntries();
+    render();
+  }
+
+  var numberSaveTimer = null;
+
+  function applyNumberChange(dk, habitId, rawValue){
+    var day = state.entries[dk] ? Object.assign({}, state.entries[dk]) : {};
+    if (rawValue === "" || rawValue === null || isNaN(Number(rawValue))) {
+      delete day[habitId];
+    } else {
+      day[habitId] = Number(rawValue);
+    }
+    state.entries = Object.assign({}, state.entries);
+    state.entries[dk] = day;
+    syncYearCache();
+  }
+
+  function setNumber(dk, habitId, rawValue){
+    applyNumberChange(dk, habitId, rawValue);
+    if (numberSaveTimer){ clearTimeout(numberSaveTimer); numberSaveTimer = null; }
+    saveEntries();
+    render();
+  }
+
+  // Live update while typing: a plain number input doesn't have the
+  // "premature complete value" quirk time inputs have, so it's safe to
+  // reflect it in the score/calendar as each digit is typed rather than
+  // waiting until the field is left. Saving to storage is still debounced
+  // so we're not writing on every keystroke.
+  function setNumberLive(dk, habitId, rawValue){
+    applyNumberChange(dk, habitId, rawValue);
+    render();
+    if (numberSaveTimer) clearTimeout(numberSaveTimer);
+    numberSaveTimer = setTimeout(function(){
+      saveEntries();
+      numberSaveTimer = null;
+    }, 600);
+  }
+
+  function setTime(dk, habitId, rawValue){
+    var day = state.entries[dk] ? Object.assign({}, state.entries[dk]) : {};
+    if (!rawValue) {
+      delete day[habitId];
+    } else {
+      day[habitId] = rawValue;
+    }
+    state.entries = Object.assign({}, state.entries);
+    state.entries[dk] = day;
+    syncYearCache();
+    saveEntries();
+    render();
+  }
+
+  function goMonth(delta){
+    var d = new Date(state.year, state.month + delta, 1);
+    var yearChanged = d.getFullYear() !== state.year;
+    state.year = d.getFullYear();
+    state.month = d.getMonth();
+    state.loading = true;
+    render();
+    loadEntries(state.year, state.month).then(function(entries){
+      state.entries = entries;
+      state.loading = false;
+      if (yearChanged && state.rhythmView === "year") ensureYearEntriesLoaded();
+      render();
+    });
+  }
+
+  function goYear(delta){
+    state.year += delta;
+    state.loading = true;
+    render();
+    Promise.all([loadEntries(state.year, state.month), loadYearEntries(state.year)]).then(function(results){
+      state.entries = results[0];
+      state.yearEntries = results[1];
+      state.yearEntriesYear = state.year;
+      state.loading = false;
+      render();
+    });
+  }
+
+  function addHabit(name, icon, type, target, rule, newColor){
+    var habit = { id: uid(), name: name, icon: icon || "\u2726", type: type, target: target || "", rule: rule || "before" };
+    var updatedConfig = { habits: state.config.habits.concat([habit]) };
+    if (newColor){
+      var priorColors = computeScoreColorsFor(maxScore());
+      updatedConfig.scoreColors = priorColors.concat([newColor]);
+    }
+    state.config = Object.assign({}, state.config, updatedConfig);
+    state.addPanelOpen = false;
+    saveConfig();
+    render();
+  }
+
+  function updateHabit(habitId, changes){
+    state.config = Object.assign({}, state.config, {
+      habits: state.config.habits.map(function(h){
+        return h.id === habitId ? Object.assign({}, h, changes) : h;
+      })
+    });
+    state.editingHabitId = null;
+    saveConfig();
+    render();
+  }
+
+  function removeHabit(habitId){
+    if (state.rhythmFilter === habitId) state.rhythmFilter = null;
+    state.config = Object.assign({}, state.config, {
+      habits: state.config.habits.filter(function(h){ return h.id !== habitId; })
+    });
+    state.confirmRemoveId = null;
+    saveConfig();
+    render();
+  }
+
+  function reorderHabits(draggedId, targetId){
+    if (draggedId === targetId) return;
+    var habits = state.config.habits.slice();
+    var fromIdx = habits.findIndex(function(h){ return h.id === draggedId; });
+    var toIdx = habits.findIndex(function(h){ return h.id === targetId; });
+    if (fromIdx === -1 || toIdx === -1) return;
+    var moved = habits.splice(fromIdx, 1)[0];
+    habits.splice(toIdx, 0, moved);
+    state.config = Object.assign({}, state.config, { habits: habits });
+    saveConfig();
+    render();
+  }
+
+  function resetMonth(){
+    state.entries = {};
+    syncYearCache();
+    saveEntries();
+    state.confirmResetOpen = false;
+    render();
+  }
+
+  // ---------- rendering ----------
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+    });
+  }
+
+  function sectionGap(){
+    return '<div class="section-gap"></div>';
+  }
+
+  function renderIconField(idPrefix, currentIcon){
+    var displayIcon = state.pendingIconValue !== null ? state.pendingIconValue : (currentIcon || "\u2726");
+    var picker = "";
+    if (state.emojiPickerOpen === idPrefix){
+      var query = state.emojiSearchQuery.trim().toLowerCase();
+      var matches = query ? EMOJI_LIBRARY.filter(function(e){ return e[1].indexOf(query) !== -1; }) : EMOJI_LIBRARY;
+      var grid = matches.map(function(e){
+        return '<button type="button" class="emoji-option" data-action="pick-emoji" data-emoji="' + e[0] + '" data-prefix="' + idPrefix + '" title="' + e[1].split(" ")[0] + '">' + e[0] + '</button>';
+      }).join("");
+      picker = '<div class="emoji-picker">' +
+        '<input type="text" class="emoji-search" id="' + idPrefix + '-emoji-search" placeholder="Search, or scroll to browse\u2026" value="' + escapeHtml(state.emojiSearchQuery) + '" data-action="emoji-search" data-prefix="' + idPrefix + '" autocomplete="off">' +
+        '<div class="emoji-grid">' + (grid || '<span class="emoji-empty">No matches</span>') + '</div>' +
+        '<div class="emoji-custom-row">' +
+          '<label for="' + idPrefix + '-emoji-custom">Or type your own</label>' +
+          '<input type="text" id="' + idPrefix + '-emoji-custom" maxlength="2" value="' + (state.pendingIconValue !== null ? escapeHtml(state.pendingIconValue) : "") + '" placeholder="\u2726" data-action="custom-emoji" data-prefix="' + idPrefix + '">' +
+        '</div>' +
+        '</div>';
+    }
+    return '<div class="add-field icon-field">' +
+      '<label>Icon</label>' +
+      '<button type="button" class="emoji-trigger" data-action="toggle-emoji-picker" data-prefix="' + idPrefix + '">' + displayIcon + '</button>' +
+      '<input type="hidden" id="' + idPrefix + '-icon" value="' + escapeHtml(displayIcon) + '">' +
+      picker +
+      '</div>';
+  }
+
+  function renderTargetFields(idPrefix, type, target, rule){
+    var timeVisible = type === "time";
+    var numberVisible = type === "number";
+    var timeBlock = '<div class="time-target-fields" id="' + idPrefix + '-time-target-wrap" style="display:' + (timeVisible ? "flex" : "none") + ';">' +
+      '<div class="add-field"><label for="' + idPrefix + '-target">Optimal time</label><input id="' + idPrefix + '-target" type="time" value="' + (timeVisible ? (target || "") : "") + '"></div>' +
+      '<div class="add-field"><label for="' + idPrefix + '-rule">Counts if logged</label><select id="' + idPrefix + '-rule">' +
+        '<option value="before"' + (rule !== "after" ? " selected" : "") + '>At or before</option>' +
+        '<option value="after"' + (rule === "after" ? " selected" : "") + '>At or after</option>' +
+      '</select></div>' +
+    '</div>';
+    var numberBlock = '<div class="time-target-fields" id="' + idPrefix + '-number-target-wrap" style="display:' + (numberVisible ? "flex" : "none") + ';">' +
+      '<div class="add-field"><label for="' + idPrefix + '-num-target">Target number</label><input id="' + idPrefix + '-num-target" type="number" value="' + (numberVisible ? (target || "") : "") + '"></div>' +
+      '<div class="add-field"><label for="' + idPrefix + '-num-rule">Counts if logged</label><select id="' + idPrefix + '-num-rule">' +
+        '<option value="above"' + (rule !== "below" ? " selected" : "") + '>At or above</option>' +
+        '<option value="below"' + (rule === "below" ? " selected" : "") + '>At or below</option>' +
+      '</select></div>' +
+    '</div>';
+    return timeBlock + numberBlock;
+  }
+
+  function getFilterDoneColor(){
+    return state.config.filterDoneColor || "#268A4E";
+  }
+
+  function computeDayInfo(y, m, d, entriesForMonth){
+    var dk = dateKeyOf(y, m, d);
+    var dayEntry = entriesForMonth[dk] || {};
+    if (!state.rhythmFilter){
+      var res = scoreForEntry(dayEntry);
+      var color = colorForScore(res.score);
+      var tooltip = MONTH_NAMES[m] + " " + d + ": " + res.score + "/" + res.max + " habits met";
+      return { color: color, tooltip: tooltip };
+    }
+    var habit = state.config.habits.find(function(h){ return h.id === state.rhythmFilter; });
+    if (!habit) return { color: colorForScore(0), tooltip: "" };
+    var val = dayEntry[habit.id];
+    var detail, done;
+    if (habit.type === "check"){
+      done = !!val;
+      detail = done ? "Checked" : "Not checked";
+    } else if (habit.type === "time"){
+      var logged = val !== undefined && val !== null && val !== "";
+      if (habit.target){
+        done = logged && isHabitDoneForDay(habit, dayEntry);
+        detail = logged ? (formatTime12(val) + (done ? " \u2014 goal met" : " \u2014 goal missed")) : "No entry";
+      } else {
+        done = logged;
+        detail = logged ? formatTime12(val) : "No entry";
+      }
+    } else if (habit.type === "number"){
+      var loggedNum = val !== undefined && val !== null && val !== "";
+      if (hasNumberTarget(habit)){
+        done = loggedNum && isHabitDoneForDay(habit, dayEntry);
+        detail = loggedNum ? (String(val) + (done ? " \u2014 goal met" : " \u2014 goal missed")) : "No entry";
+      } else {
+        done = loggedNum;
+        detail = loggedNum ? String(val) : "No entry";
+      }
+    } else {
+      done = val !== undefined && val !== null && val !== "";
+      detail = done ? String(val) : "No entry";
+    }
+    var colors = getScoreColors();
+    return {
+      color: done ? getFilterDoneColor() : colors[0],
+      tooltip: MONTH_NAMES[m] + " " + d + " \u2014 " + habit.name + ": " + detail
+    };
+  }
+
+  function renderLegend(){
+    var colors = getScoreColors();
+    return state.rhythmFilter ?
+      '<div class="rhythm-legend"><span class="swatch" style="background:' + colors[0] + '"></span>Not done' +
+        '<span class="swatch" style="background:' + getFilterDoneColor() + '; margin-left:10px;"></span>Done' +
+        ' <button class="colors-edit-link" data-action="toggle-color-editor">Edit colors</button></div>' :
+      '<div class="rhythm-legend">Less' +
+        colors.map(function(c){ return '<span class="swatch" style="background:' + c + '"></span>'; }).join("") +
+        'More <button class="colors-edit-link" data-action="toggle-color-editor">Edit colors</button></div>';
+  }
+
+  function renderMonthGrid(){
+    var n = daysInMonth(state.year, state.month);
+    var firstWeekday = new Date(state.year, state.month, 1).getDay();
+
+    var weekdayHeader = '<div class="cal-weekdays">' +
+      ["S","M","T","W","T","F","S"].map(function(w){ return "<span>" + w + "</span>"; }).join("") +
+      '</div>';
+
+    var cells = "";
+    for (var i = 0; i < firstWeekday; i++){
+      cells += '<div class="cal-cell empty"></div>';
+    }
+    for (var d = 1; d <= n; d++){
+      var info = computeDayInfo(state.year, state.month, d, state.entries);
+      var isToday = (function(){ var n = getNow(); return state.year === n.getFullYear() && state.month === n.getMonth() && d === n.getDate(); })();
+      cells += '<div class="cal-cell' + (isToday ? " today" : "") +
+        '" style="background:' + info.color + '; color:' + textColorFor(info.color) + '" title="' + info.tooltip + '">' +
+        d +
+        '</div>';
+    }
+
+    return '<div class="calendar-wrap">' +
+      weekdayHeader +
+      '<div class="calendar-grid">' + cells + '</div>' +
+      renderLegend() +
+      '</div>';
+  }
+
+  function renderYearGrid(){
+    if (state.yearLoading || !state.yearEntries || state.yearEntriesYear !== state.year){
+      return '<div class="year-loading">Loading the year&hellip;</div>';
+    }
+    var nowD = getNow();
+    var cards = "";
+    for (var m = 0; m < 12; m++){
+      var entriesForMonth = state.yearEntries[m] || {};
+      var n = daysInMonth(state.year, m);
+      var firstWeekday = new Date(state.year, m, 1).getDay();
+      var cellsHtml = "";
+      for (var i = 0; i < firstWeekday; i++){
+        cellsHtml += '<div class="mini-cal-cell empty"></div>';
+      }
+      for (var d = 1; d <= n; d++){
+        var info = computeDayInfo(state.year, m, d, entriesForMonth);
+        var isToday = (state.year === nowD.getFullYear() && m === nowD.getMonth() && d === nowD.getDate());
+        cellsHtml += '<div class="mini-cal-cell' + (isToday ? " today" : "") + '" style="background:' +
+          info.color + '" title="' + info.tooltip + '" data-action="goto-month" data-month="' + m + '"></div>';
+      }
+      cards += '<div class="mini-month">' +
+        '<p class="mini-month-title" data-action="goto-month" data-month="' + m + '">' + MONTH_NAMES[m] + '</p>' +
+        '<div class="mini-cal-grid">' + cellsHtml + '</div>' +
+        '</div>';
+    }
+    return '<div class="year-grid">' + cards + '</div>' + renderLegend();
+  }
+
+  function renderRhythm(){
+    var habits = state.config.habits;
+
+    var activeHabit = state.rhythmFilter ? habits.find(function(h){ return h.id === state.rhythmFilter; }) : null;
+    var triggerLabel = activeHabit ? (activeHabit.icon + " " + escapeHtml(activeHabit.name)) : "All habits";
+
+    var dropdownMenu = "";
+    if (state.rhythmDropdownOpen){
+      dropdownMenu = '<div class="filter-dropdown">' +
+        '<button class="filter-option' + (state.rhythmFilter ? "" : " active") + '" data-action="filter-rhythm" data-habit="">All habits</button>' +
+        habits.map(function(h){
+          return '<button class="filter-option' + (state.rhythmFilter === h.id ? " active" : "") +
+            '" data-action="filter-rhythm" data-habit="' + h.id + '">' + h.icon + " " + escapeHtml(h.name) + '</button>';
+        }).join("") +
+        '</div>';
+    }
+
+    var filterRow = '<div class="rhythm-filter">' +
+      '<button class="filter-trigger" data-action="toggle-rhythm-dropdown"><span>' + triggerLabel + '</span><span class="chevron">' +
+      (state.rhythmDropdownOpen ? "&#9650;" : "&#9660;") + '</span></button>' +
+      dropdownMenu +
+      '</div>';
+
+    var viewToggle = '<div class="view-toggle">' +
+      '<button data-action="set-rhythm-view" data-view="month" class="' + (state.rhythmView === "month" ? "active" : "") + '">Month</button>' +
+      '<button data-action="set-rhythm-view" data-view="year" class="' + (state.rhythmView === "year" ? "active" : "") + '">Year</button>' +
+      '</div>';
+
+    var yearNav = state.rhythmView === "year" ?
+      '<div class="year-nav">' +
+        '<button data-action="prev-year" aria-label="Previous year">&lsaquo;</button>' +
+        '<span>' + state.year + '</span>' +
+        '<button data-action="next-year" aria-label="Next year">&rsaquo;</button>' +
+      '</div>' : "";
+
+    return '<div class="rhythm">' +
+      '<div class="rhythm-controls">' + viewToggle + yearNav + '</div>' +
+      '<p class="rhythm-label">' + (state.rhythmView === "year" ? "Yearly rhythm" : "Monthly rhythm") + '</p>' +
+      filterRow +
+      (state.rhythmView === "year" ? renderYearGrid() : renderMonthGrid()) +
+      '</div>';
+  }
+
+  function renderTable(){
+    var habits = state.config.habits;
+    var n = daysInMonth(state.year, state.month);
+
+    var thead = '<tr><th>Day</th><th>Date</th>';
+    habits.forEach(function(h){
+      thead += '<th class="habit-col" draggable="true" data-habit-id="' + h.id + '">' +
+        '<span class="drag-handle" aria-hidden="true">&#8942;&#8942;</span>' +
+        '<span class="habit-col-actions">' +
+          '<button class="edit-habit" data-action="ask-edit" data-habit="' + h.id + '" aria-label="Edit ' + escapeHtml(h.name) + '">&#9998;</button>' +
+          '<button class="remove-habit" data-action="ask-remove" data-habit="' + h.id + '" aria-label="Remove ' + escapeHtml(h.name) + '">&times;</button>' +
+        '</span>' +
+        '<span class="habit-col-inner"><span class="habit-icon">' + h.icon + '</span><span class="habit-name">' + escapeHtml(h.name) + '</span></span>' +
+        '</th>';
+    });
+    thead += '<th>Score</th><th class="add-habit-col"><button class="add-habit-btn" data-action="toggle-add" aria-label="Add habit">+</button></th></tr>';
+
+    var rows = "";
+    for (var d = 1; d <= n; d++){
+      var dateObj = new Date(state.year, state.month, d);
+      var dk = dateKeyOf(state.year, state.month, d);
+      var dayOfWeek = dateObj.getDay();
+      var isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      var isToday = (function(){ var n = getNow(); return state.year === n.getFullYear() && state.month === n.getMonth() && d === n.getDate(); })();
+      var dayName = dateObj.toLocaleDateString("en-US", { weekday: "long" });
+      var dayEntry = state.entries[dk] || {};
+
+      var cells = '<td class="day-cell"><span class="day-name">' + dayName + '</span><br><span class="day-date">' +
+        MONTH_NAMES[state.month] + " " + d + '</span></td>' +
+        '<td class="day-date">' + monthKey(state.year, state.month) + '-' + pad(d) + '</td>';
+
+      habits.forEach(function(h){
+        if (h.type === "check"){
+          var checked = !!dayEntry[h.id];
+          cells += '<td class="habit-cell"><button class="check-btn' + (checked ? " checked" : "") +
+            '" role="checkbox" aria-checked="' + checked + '" data-action="toggle" data-date="' + dk +
+            '" data-habit="' + h.id + '">' + (checked ? "&#10003;" : "") + '</button></td>';
+        } else if (h.type === "time"){
+          var tval = (dayEntry[h.id] === undefined || dayEntry[h.id] === null) ? "" : dayEntry[h.id];
+          cells += '<td class="habit-cell"><input class="time-input" type="time" value="' + tval +
+            '" data-action="time" data-date="' + dk + '" data-habit="' + h.id + '"></td>';
+        } else {
+          var val = (dayEntry[h.id] === undefined || dayEntry[h.id] === null) ? "" : dayEntry[h.id];
+          cells += '<td class="habit-cell"><input class="num-input" type="number" inputmode="numeric" value="' + val +
+            '" data-action="number" data-date="' + dk + '" data-habit="' + h.id + '" placeholder="&ndash;"></td>';
+        }
+      });
+
+      cells += '<td class="score-cell">' + scoreForDate(dk) + '</td><td></td>';
+
+      rows += '<tr class="' + (isWeekend ? "weekend " : "") + (isToday ? "today" : "") + '">' + cells + '</tr>';
+    }
+
+    var elapsed = relevantDaysElapsed(state.year, state.month) || 1;
+    var tfoot = '<tr><td colspan="2">Done this month</td>';
+    habits.forEach(function(h){
+      if (h.type === "check"){
+        var count = 0;
+        for (var d2 = 1; d2 <= n; d2++){
+          var dk2 = dateKeyOf(state.year, state.month, d2);
+          if (state.entries[dk2] && state.entries[dk2][h.id]) count++;
+        }
+        tfoot += '<td class="habit-cell">' + count + '</td>';
+      } else if (h.type === "time"){
+        var tvals = [];
+        var metCountFoot = 0;
+        for (var d3t = 1; d3t <= n; d3t++){
+          var dk3t = dateKeyOf(state.year, state.month, d3t);
+          var dayEntryFoot = state.entries[dk3t] || {};
+          var vt = dayEntryFoot[h.id];
+          var mins = vt ? timeToMinutes(vt) : null;
+          if (mins !== null) tvals.push(mins);
+          if (h.target && isHabitDoneForDay(h, dayEntryFoot)) metCountFoot++;
+        }
+        var avgTime = tvals.length ? formatTime12(minutesToTime(circularMeanMinutes(tvals))) : "&ndash;";
+        tfoot += '<td class="habit-cell">' + (h.target ? ("met " + metCountFoot + " &middot; avg " + avgTime) : ("avg " + avgTime)) + '</td>';
+      } else {
+        var vals = [];
+        var metCountFootNum = 0;
+        for (var d3 = 1; d3 <= n; d3++){
+          var dk3 = dateKeyOf(state.year, state.month, d3);
+          var dayEntryFootN = state.entries[dk3] || {};
+          var v = dayEntryFootN[h.id];
+          if (v !== undefined && v !== null && v !== "") vals.push(v);
+          if (hasNumberTarget(h) && isHabitDoneForDay(h, dayEntryFootN)) metCountFootNum++;
+        }
+        var avg = vals.length ? Math.round(vals.reduce(function(a,b){return a+Number(b);},0) / vals.length) : "&ndash;";
+        tfoot += '<td class="habit-cell">' + (hasNumberTarget(h) ? ("met " + metCountFootNum + " &middot; avg " + avg) : ("avg " + avg)) + '</td>';
+      }
+    });
+    tfoot += '<td></td><td></td></tr>';
+
+    var addPanel = "";
+    if (state.addPanelOpen){
+      var currentColors = getScoreColors();
+      var previewNewColor = defaultColorScale(currentColors.length + 1)[currentColors.length];
+      var colorPreview = '<div class="new-color-preview" id="new-habit-color-wrap" style="display:flex; flex-direction:column;">' +
+        '<p>A checkbox or time-goal habit adds one more step to your calendar\u2019s color scale. Here\u2019s the current scale, plus the new color it introduces:</p>' +
+        '<div class="existing-scale-strip">' + currentColors.map(function(c){ return '<span class="swatch" style="background:' + c + '"></span>'; }).join("") + '</div>' +
+        '<div class="color-editor-row">' +
+          '<span class="swatch-preview" style="background:' + previewNewColor + '"></span>' +
+          '<span class="color-editor-label">New: ' + currentColors.length + ' habits met</span>' +
+          '<input type="color" id="new-habit-color" value="' + previewNewColor + '">' +
+        '</div>' +
+        '</div>';
+      addPanel = '<div class="add-panel">' +
+        renderIconField("new-habit", "") +
+        '<div class="add-field"><label for="new-habit-name">Habit name</label><input id="new-habit-name" type="text" placeholder="e.g. Stretch"></div>' +
+        '<div class="add-field"><label for="new-habit-type">Type</label><select id="new-habit-type"><option value="check">Checkbox</option><option value="number">Number</option><option value="time">Time</option></select></div>' +
+        renderTargetFields("new-habit", "check", "", "before") +
+        colorPreview +
+        '<button class="btn btn-primary" data-action="confirm-add">Add habit</button>' +
+        '<button class="btn btn-ghost" data-action="cancel-add">Cancel</button>' +
+        '</div>';
+    }
+
+    return '<div class="table-section">' +
+      '<p class="section-heading">Daily log</p>' +
+      '<div class="ledger-table-wrap"><table class="ledger">' +
+      '<thead>' + thead + '</thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '<tfoot>' + tfoot + '</tfoot>' +
+      '</table></div>' + addPanel +
+      '</div>';
+  }
+
+  function renderStats(){
+    var habits = state.config.habits;
+    var n = daysInMonth(state.year, state.month);
+    var elapsed = relevantDaysElapsed(state.year, state.month);
+
+    var cards = habits.map(function(h){
+      if (h.type === "check"){
+        var count = 0;
+        for (var d = 1; d <= n; d++){
+          var dk = dateKeyOf(state.year, state.month, d);
+          if (state.entries[dk] && state.entries[dk][h.id]) count++;
+        }
+        var pct = elapsed > 0 ? Math.round((count / elapsed) * 100) : 0;
+        return '<div class="stat-card">' +
+          '<div class="stat-card-top"><span class="habit-icon">' + h.icon + '</span><span class="habit-name">' + escapeHtml(h.name) + '</span></div>' +
+          '<div class="stat-value">' + count + ' / ' + elapsed + '</div>' +
+          '<div class="bar-track"><div class="bar-fill" style="width:' + Math.min(pct,100) + '%"></div></div>' +
+          '</div>';
+      } else if (h.type === "time"){
+        var tvals2 = [];
+        var metCount = 0;
+        for (var dt = 1; dt <= n; dt++){
+          var dkt = dateKeyOf(state.year, state.month, dt);
+          var dayEntryT = state.entries[dkt] || {};
+          var vt2 = dayEntryT[h.id];
+          var mins2 = vt2 ? timeToMinutes(vt2) : null;
+          if (mins2 !== null) tvals2.push(mins2);
+          if (h.target && isHabitDoneForDay(h, dayEntryT)) metCount++;
+        }
+        var avgT = tvals2.length ? formatTime12(minutesToTime(circularMeanMinutes(tvals2))) : null;
+        if (h.target){
+          var pctT = elapsed > 0 ? Math.round((metCount / elapsed) * 100) : 0;
+          return '<div class="stat-card">' +
+            '<div class="stat-card-top"><span class="habit-icon">' + h.icon + '</span><span class="habit-name">' + escapeHtml(h.name) + '</span></div>' +
+            '<div class="stat-value">' + metCount + ' / ' + elapsed + '</div>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + Math.min(pctT,100) + '%"></div></div>' +
+            '<div class="stat-subline">avg ' + (avgT === null ? "&ndash;" : avgT) + ' &middot; goal ' + (h.rule === "after" ? "after " : "before ") + formatTime12(h.target) + '</div>' +
+            '</div>';
+        }
+        return '<div class="stat-card">' +
+          '<div class="stat-card-top"><span class="habit-icon">' + h.icon + '</span><span class="habit-name">' + escapeHtml(h.name) + '</span></div>' +
+          '<div class="stat-value">' + (avgT === null ? "&ndash;" : avgT) + '</div>' +
+          '<div class="bar-track"><div class="bar-fill" style="width:' + (tvals2.length ? "100" : "0") + '%; background: var(--moss);"></div></div>' +
+          '</div>';
+      } else {
+        var vals = [];
+        var metCountNum = 0;
+        for (var d2 = 1; d2 <= n; d2++){
+          var dk2 = dateKeyOf(state.year, state.month, d2);
+          var dayEntryN = state.entries[dk2] || {};
+          var v = dayEntryN[h.id];
+          if (v !== undefined && v !== null && v !== "") vals.push(v);
+          if (hasNumberTarget(h) && isHabitDoneForDay(h, dayEntryN)) metCountNum++;
+        }
+        var avg = vals.length ? Math.round(vals.reduce(function(a,b){return a+Number(b);},0) / vals.length) : null;
+        if (hasNumberTarget(h)){
+          var pctN = elapsed > 0 ? Math.round((metCountNum / elapsed) * 100) : 0;
+          return '<div class="stat-card">' +
+            '<div class="stat-card-top"><span class="habit-icon">' + h.icon + '</span><span class="habit-name">' + escapeHtml(h.name) + '</span></div>' +
+            '<div class="stat-value">' + metCountNum + ' / ' + elapsed + '</div>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + Math.min(pctN,100) + '%"></div></div>' +
+            '<div class="stat-subline">avg ' + (avg === null ? "&ndash;" : avg) + ' &middot; goal ' + (h.rule === "below" ? "at or below " : "at or above ") + h.target + '</div>' +
+            '</div>';
+        }
+        return '<div class="stat-card">' +
+          '<div class="stat-card-top"><span class="habit-icon">' + h.icon + '</span><span class="habit-name">' + escapeHtml(h.name) + '</span></div>' +
+          '<div class="stat-value">' + (avg === null ? "&ndash;" : avg) + '</div>' +
+          '<div class="bar-track"><div class="bar-fill" style="width:' + (vals.length ? "100" : "0") + '%; background: var(--moss);"></div></div>' +
+          '</div>';
+      }
+    }).join("");
+
+    return '<div class="stats-head"><h2 class="section-heading">This month at a glance</h2></div>' +
+      '<div class="stats-grid">' + cards + '</div>';
+  }
+
+  function renderFooterControls(){
+    var exportMenu = "";
+    if (state.exportMenuOpen){
+      exportMenu = '<div class="filter-dropdown" style="left: auto; right: 0;">' +
+        '<button class="filter-option" data-action="export-data" data-format="xlsx">Excel (.xlsx)</button>' +
+        '<button class="filter-option" data-action="export-data" data-format="csv">CSV &mdash; for Sheets or Notion</button>' +
+        '<button class="filter-option" data-action="export-data" data-format="json">JSON (full backup)</button>' +
+        '</div>';
+    }
+    var statusHtml = state.exportStatus ? '<span class="export-status">' + escapeHtml(state.exportStatus) + '</span>' : "";
+    return '<div class="footer-controls-row">' +
+      '<button class="btn btn-ghost" data-action="ask-reset" style="padding-left:0;">Reset this month</button>' +
+      '<div class="export-control">' +
+        '<button class="filter-trigger" data-action="toggle-export-menu"><span>Export</span><span class="chevron">' +
+        (state.exportMenuOpen ? "&#9650;" : "&#9660;") + '</span></button>' +
+        exportMenu +
+      '</div>' +
+      '<label for="import-file-input" class="filter-trigger" style="cursor:pointer;"><span>Import</span></label>' +
+      '<button class="filter-trigger" data-action="share-snapshot"><span>Share</span></button>' +
+      statusHtml +
+      '</div>';
+  }
+
+  function render(){
+    var app = document.getElementById("app");
+
+    if (state.loading){
+      app.innerHTML = '<div class="loading-state">Opening your tracker&hellip;</div>';
+      return;
+    }
+
+    var html = '';
+    html += '<div class="ledger-head">' +
+      '<h1 class="ledger-title">Habit Tracker</h1>' +
+      '<div class="month-nav">' +
+        '<button data-action="prev-month" aria-label="Previous month">&lsaquo;</button>' +
+        '<span>' + MONTH_NAMES[state.month] + ' ' + state.year + '</span>' +
+        '<button data-action="next-month" aria-label="Next month">&rsaquo;</button>' +
+      '</div>' +
+    '</div>';
+    html += sectionGap();
+    html += renderTable();
+    html += sectionGap();
+    html += renderRhythm();
+    html += sectionGap();
+    html += renderStats();
+    html += '<div class="ledger-footer-row">' + renderFooterControls() + '</div>';
+    html += renderModals();
+
+    app.innerHTML = html;
+
+    // restore add-panel field values / focus if it was open
+    if (state.addPanelOpen){
+      var nameInput = document.getElementById("new-habit-name");
+      if (nameInput) nameInput.focus();
+      var newTypeSelect = document.getElementById("new-habit-type");
+      var newTimeWrap = document.getElementById("new-habit-time-target-wrap");
+      var newNumberWrap = document.getElementById("new-habit-number-target-wrap");
+      if (newTypeSelect){
+        newTypeSelect.addEventListener("change", function(){
+          if (newTimeWrap) newTimeWrap.style.display = (newTypeSelect.value === "time") ? "flex" : "none";
+          if (newNumberWrap) newNumberWrap.style.display = (newTypeSelect.value === "number") ? "flex" : "none";
+        });
+      }
+    }
+    var editNameInput = document.getElementById("edit-habit-name");
+    if (editNameInput) { editNameInput.focus(); editNameInput.select(); }
+    var editTypeSelect = document.getElementById("edit-habit-type");
+    var editTimeWrap = document.getElementById("edit-habit-time-target-wrap");
+    var editNumberWrap = document.getElementById("edit-habit-number-target-wrap");
+    if (editTypeSelect){
+      editTypeSelect.addEventListener("change", function(){
+        if (editTimeWrap) editTimeWrap.style.display = (editTypeSelect.value === "time") ? "flex" : "none";
+        if (editNumberWrap) editNumberWrap.style.display = (editTypeSelect.value === "number") ? "flex" : "none";
+      });
+    }
+  }
+
+  function renderModals(){
+    if (state.editingHabitId){
+      var h = state.config.habits.find(function(x){ return x.id === state.editingHabitId; });
+      if (!h) return "";
+      var typeOptions = ["check","number","time"].map(function(t){
+        var labels = { check: "Checkbox", number: "Number", time: "Time" };
+        return '<option value="' + t + '"' + (t === h.type ? " selected" : "") + '>' + labels[t] + '</option>';
+      }).join("");
+      return '<div class="modal-overlay" data-action="cancel-edit">' +
+        '<div class="modal-card" data-stop-close="1">' +
+          '<h2 class="modal-title">Edit habit</h2>' +
+          '<div class="modal-fields">' +
+            renderIconField("edit-habit", h.icon) +
+            '<div class="add-field"><label for="edit-habit-name">Habit name</label><input id="edit-habit-name" type="text" value="' + escapeHtml(h.name) + '"></div>' +
+            '<div class="add-field"><label for="edit-habit-type">Type</label><select id="edit-habit-type">' + typeOptions + '</select></div>' +
+            renderTargetFields("edit-habit", h.type, h.target, h.rule) +
+          '</div>' +
+          '<div class="modal-actions">' +
+            '<button class="btn btn-ghost" data-action="cancel-edit">Cancel</button>' +
+            '<button class="btn btn-primary" data-action="confirm-edit" data-habit="' + h.id + '">Save changes</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    if (state.confirmRemoveId){
+      var rh = state.config.habits.find(function(x){ return x.id === state.confirmRemoveId; });
+      if (!rh) return "";
+      return '<div class="modal-overlay" data-action="cancel-remove">' +
+        '<div class="modal-card" data-stop-close="1">' +
+          '<h2 class="modal-title">Remove habit?</h2>' +
+          '<p class="modal-body">Remove "' + escapeHtml(rh.name) + '" from the tracker? It will disappear from the table and this month\u2019s history along with it.</p>' +
+          '<div class="modal-actions">' +
+            '<button class="btn btn-ghost" data-action="cancel-remove">Cancel</button>' +
+            '<button class="btn btn-danger" data-action="do-remove" data-habit="' + rh.id + '">Yes, remove it</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    if (state.confirmResetOpen){
+      return '<div class="modal-overlay" data-action="cancel-reset">' +
+        '<div class="modal-card" data-stop-close="1">' +
+          '<h2 class="modal-title">Reset ' + MONTH_NAMES[state.month] + '?</h2>' +
+          '<p class="modal-body">This clears every checkbox, number, and time entry for ' + MONTH_NAMES[state.month] + ' ' + state.year + '. Your habit list stays the same.</p>' +
+          '<div class="modal-actions">' +
+            '<button class="btn btn-ghost" data-action="cancel-reset">Cancel</button>' +
+            '<button class="btn btn-danger" data-action="confirm-reset">Yes, clear it</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    if (state.confirmImportOpen){
+      var importMonthCount = state.pendingImportData ? Object.keys(state.pendingImportData.entries).length : 0;
+      var importHabitCount = state.pendingImportData ? state.pendingImportData.config.habits.length : 0;
+      return '<div class="modal-overlay" data-action="cancel-import">' +
+        '<div class="modal-card" data-stop-close="1">' +
+          '<h2 class="modal-title">Restore this backup?</h2>' +
+          '<p class="modal-body">This file has ' + importHabitCount + ' habit' + (importHabitCount === 1 ? "" : "s") +
+            ' and ' + importMonthCount + ' month' + (importMonthCount === 1 ? "" : "s") + ' of history. ' +
+            'Restoring it will replace your current habits, colors, and history \u2014 this can\u2019t be undone.</p>' +
+          '<div class="modal-actions">' +
+            '<button class="btn btn-ghost" data-action="cancel-import">Cancel</button>' +
+            '<button class="btn btn-danger" data-action="confirm-import">Yes, replace everything</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    if (state.colorEditorOpen){
+      var colors = getScoreColors();
+      var rows = colors.map(function(c, i){
+        var label = i === 0 ? "0 habits met" : i === colors.length - 1 ? i + " habits met (perfect day)" : i + " habit" + (i === 1 ? "" : "s") + " met";
+        return '<div class="color-editor-row">' +
+          '<span class="swatch-preview" style="background:' + c + '"></span>' +
+          '<span class="color-editor-label">' + label + '</span>' +
+          '<input type="color" value="' + c + '" data-action="set-score-color" data-index="' + i + '">' +
+          '</div>';
+      }).join("");
+      var filterRow = '<div class="color-editor-section-label">Single-habit view</div>' +
+        '<div class="color-editor-row">' +
+        '<span class="swatch-preview" style="background:' + getFilterDoneColor() + '"></span>' +
+        '<span class="color-editor-label">Done color</span>' +
+        '<input type="color" value="' + getFilterDoneColor() + '" data-action="set-filter-done-color">' +
+        '</div>' +
+        '<div class="color-editor-section-label">All habits view</div>';
+      return '<div class="modal-overlay" data-action="cancel-color-editor">' +
+        '<div class="modal-card" data-stop-close="1">' +
+          '<h2 class="modal-title">Calendar colors</h2>' +
+          '<p class="modal-body">Pick a color for each possible daily score. This is what shades the monthly and yearly calendar.</p>' +
+          '<div class="color-editor-rows">' + filterRow + rows + '</div>' +
+          '<div class="modal-actions">' +
+            '<button class="btn btn-ghost" data-action="reset-score-colors">Reset to default</button>' +
+            '<button class="btn btn-primary" data-action="cancel-color-editor">Done</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    return "";
+  }
+
+  // ---------- event delegation ----------
+
+  document.addEventListener("dragstart", function(e){
+    var th = e.target.closest("th.habit-col");
+    if (!th) return;
+    e.dataTransfer.setData("text/plain", th.getAttribute("data-habit-id"));
+    e.dataTransfer.effectAllowed = "move";
+    th.classList.add("dragging");
+  });
+
+  document.addEventListener("dragover", function(e){
+    var th = e.target.closest("th.habit-col");
+    if (!th) return;
+    e.preventDefault();
+    th.classList.add("drag-over");
+  });
+
+  document.addEventListener("dragleave", function(e){
+    var th = e.target.closest("th.habit-col");
+    if (!th) return;
+    th.classList.remove("drag-over");
+  });
+
+  document.addEventListener("drop", function(e){
+    var th = e.target.closest("th.habit-col");
+    if (!th) return;
+    e.preventDefault();
+    th.classList.remove("drag-over");
+    var draggedId = e.dataTransfer.getData("text/plain");
+    var targetId = th.getAttribute("data-habit-id");
+    if (draggedId && targetId) reorderHabits(draggedId, targetId);
+  });
+
+  document.addEventListener("dragend", function(){
+    var cols = document.querySelectorAll("th.habit-col.dragging, th.habit-col.drag-over");
+    cols.forEach(function(el){ el.classList.remove("dragging"); el.classList.remove("drag-over"); });
+  });
+
+  document.addEventListener("click", function(e){
+    var somethingWasOpen = state.rhythmDropdownOpen || state.exportMenuOpen || state.emojiPickerOpen;
+    if (state.rhythmDropdownOpen && !e.target.closest(".rhythm-filter")){
+      state.rhythmDropdownOpen = false;
+    }
+    if (state.exportMenuOpen && !e.target.closest(".export-control")){
+      state.exportMenuOpen = false;
+    }
+    if (state.emojiPickerOpen && !e.target.closest(".icon-field")){
+      state.emojiPickerOpen = false;
+    }
+
+    var target = e.target.closest("[data-action]");
+    if (!target){
+      if (somethingWasOpen && !state.rhythmDropdownOpen && !state.exportMenuOpen && !state.emojiPickerOpen) render();
+      return;
+    }
+    var action = target.getAttribute("data-action");
+
+    // clicking inside a modal card should never trigger the backdrop's close action
+    if (target.classList.contains("modal-overlay") && e.target !== target) return;
+
+    if (action === "toggle"){
+      toggleHabit(target.getAttribute("data-date"), target.getAttribute("data-habit"));
+    } else if (action === "prev-month"){
+      goMonth(-1);
+    } else if (action === "next-month"){
+      goMonth(1);
+    } else if (action === "toggle-add"){
+      state.addPanelOpen = !state.addPanelOpen;
+      state.emojiPickerOpen = false;
+      state.emojiSearchQuery = "";
+      state.pendingIconValue = null;
+      render();
+    } else if (action === "cancel-add"){
+      state.addPanelOpen = false;
+      state.emojiPickerOpen = false;
+      state.pendingIconValue = null;
+      render();
+    } else if (action === "confirm-add"){
+      var nameEl = document.getElementById("new-habit-name");
+      var iconEl = document.getElementById("new-habit-icon");
+      var typeEl = document.getElementById("new-habit-type");
+      var targetEl = document.getElementById("new-habit-target");
+      var ruleEl = document.getElementById("new-habit-rule");
+      var numTargetEl = document.getElementById("new-habit-num-target");
+      var numRuleEl = document.getElementById("new-habit-num-rule");
+      var colorEl = document.getElementById("new-habit-color");
+      var name = (nameEl.value || "").trim();
+      if (!name) { nameEl.focus(); return; }
+      var addTarget = "", addRule = "before";
+      if (typeEl.value === "time"){ addTarget = targetEl.value; addRule = ruleEl.value; }
+      else if (typeEl.value === "number"){ addTarget = numTargetEl.value; addRule = numRuleEl.value; }
+      state.emojiPickerOpen = false;
+      state.pendingIconValue = null;
+      addHabit(name, (iconEl.value || "").trim(), typeEl.value, addTarget, addRule, colorEl ? colorEl.value : null);
+    } else if (action === "ask-edit"){
+      state.editingHabitId = target.getAttribute("data-habit");
+      state.emojiPickerOpen = false;
+      state.emojiSearchQuery = "";
+      state.pendingIconValue = null;
+      render();
+    } else if (action === "cancel-edit"){
+      state.editingHabitId = null;
+      state.emojiPickerOpen = false;
+      state.pendingIconValue = null;
+      render();
+    } else if (action === "confirm-edit"){
+      var editNameEl = document.getElementById("edit-habit-name");
+      var editIconEl = document.getElementById("edit-habit-icon");
+      var editTypeEl = document.getElementById("edit-habit-type");
+      var editTargetEl = document.getElementById("edit-habit-target");
+      var editRuleEl = document.getElementById("edit-habit-rule");
+      var editNumTargetEl = document.getElementById("edit-habit-num-target");
+      var editNumRuleEl = document.getElementById("edit-habit-num-rule");
+      var editedName = (editNameEl.value || "").trim();
+      if (!editedName) { editNameEl.focus(); return; }
+      var editTarget = "", editRule = "before";
+      if (editTypeEl.value === "time"){ editTarget = editTargetEl.value; editRule = editRuleEl.value; }
+      else if (editTypeEl.value === "number"){ editTarget = editNumTargetEl.value; editRule = editNumRuleEl.value; }
+      state.emojiPickerOpen = false;
+      state.pendingIconValue = null;
+      updateHabit(target.getAttribute("data-habit"), {
+        name: editedName,
+        icon: (editIconEl.value || "").trim() || "\u2726",
+        type: editTypeEl.value,
+        target: editTarget,
+        rule: editRule
+      });
+    } else if (action === "toggle-emoji-picker"){
+      var iconPrefix = target.getAttribute("data-prefix");
+      if (state.emojiPickerOpen === iconPrefix){
+        state.emojiPickerOpen = false;
+      } else {
+        var hiddenIcon = document.getElementById(iconPrefix + "-icon");
+        state.pendingIconValue = hiddenIcon ? hiddenIcon.value : "";
+        state.emojiSearchQuery = "";
+        state.emojiPickerOpen = iconPrefix;
+      }
+      render();
+    } else if (action === "pick-emoji"){
+      state.pendingIconValue = target.getAttribute("data-emoji");
+      state.emojiPickerOpen = false;
+      render();
+    } else if (action === "toggle-rhythm-dropdown"){
+      state.rhythmDropdownOpen = !state.rhythmDropdownOpen;
+      render();
+    } else if (action === "toggle-export-menu"){
+      state.exportMenuOpen = !state.exportMenuOpen;
+      render();
+    } else if (action === "confirm-import"){
+      applyImport();
+    } else if (action === "cancel-import"){
+      state.confirmImportOpen = false;
+      state.pendingImportData = null;
+      render();
+    } else if (action === "share-snapshot"){
+      shareSnapshot();
+    } else if (action === "toggle-color-editor"){
+      state.colorEditorOpen = true;
+      render();
+    } else if (action === "cancel-color-editor"){
+      state.colorEditorOpen = false;
+      render();
+    } else if (action === "reset-score-colors"){
+      var maxNow = maxScore();
+      state.config = Object.assign({}, state.config, { scoreColors: defaultColorScale(maxNow + 1), filterDoneColor: "" });
+      saveConfig();
+      render();
+    } else if (action === "export-data"){
+      state.exportMenuOpen = false;
+      render();
+      runExport(target.getAttribute("data-format"));
+    } else if (action === "filter-rhythm"){
+      state.rhythmFilter = target.getAttribute("data-habit") || null;
+      state.rhythmDropdownOpen = false;
+      render();
+    } else if (action === "set-rhythm-view"){
+      state.rhythmView = target.getAttribute("data-view");
+      if (state.rhythmView === "year") ensureYearEntriesLoaded();
+      render();
+    } else if (action === "prev-year"){
+      goYear(-1);
+    } else if (action === "next-year"){
+      goYear(1);
+    } else if (action === "goto-month"){
+      var targetMonth = Number(target.getAttribute("data-month"));
+      state.month = targetMonth;
+      state.entries = (state.yearEntries && state.yearEntries[targetMonth]) || {};
+      state.rhythmView = "month";
+      render();
+    } else if (action === "ask-remove"){
+      state.confirmRemoveId = target.getAttribute("data-habit");
+      render();
+    } else if (action === "cancel-remove"){
+      state.confirmRemoveId = null;
+      render();
+    } else if (action === "do-remove"){
+      removeHabit(target.getAttribute("data-habit"));
+    } else if (action === "ask-reset"){
+      state.confirmResetOpen = true;
+      render();
+    } else if (action === "cancel-reset"){
+      state.confirmResetOpen = false;
+      render();
+    } else if (action === "confirm-reset"){
+      resetMonth();
+    }
+  });
+
+  document.addEventListener("change", function(e){
+    var target = e.target;
+    if (target.id === "import-file-input"){
+      var file = target.files && target.files[0];
+      var oldInputEl = target;
+      handleImportFile(file).then(function(){
+        // Only touch the DOM once the read is fully done, so we never risk
+        // pulling the element (and its in-flight file data) out from under
+        // an active read - that race was causing intermittent failures.
+        var freshFileInput = oldInputEl.cloneNode(true);
+        freshFileInput.value = "";
+        if (oldInputEl.parentNode) oldInputEl.parentNode.replaceChild(freshFileInput, oldInputEl);
+      });
+      return;
+    }
+    if (target.matches && target.matches('[data-action="set-score-color"]')){
+      var idx = Number(target.getAttribute("data-index"));
+      var colors = getScoreColors().slice();
+      colors[idx] = target.value;
+      state.config = Object.assign({}, state.config, { scoreColors: colors });
+      saveConfig();
+      render();
+    } else if (target.matches && target.matches('[data-action="set-filter-done-color"]')){
+      state.config = Object.assign({}, state.config, { filterDoneColor: target.value });
+      saveConfig();
+      render();
+    }
+  });
+
+  // Committed on focusout (not 'change'): a time input can report a fully
+  // "complete" value after a single keystroke when you're overwriting an
+  // existing time (the old minute/second still fills the rest), which fired
+  // 'change' before you'd finished typing and re-rendering mid-edit yanked
+  // the field out from under you. Waiting until the field is actually left
+  // avoids that, while Enter (below) still lets you commit immediately.
+  document.addEventListener("input", function(e){
+    var target = e.target;
+    if (target.matches && target.matches('[data-action="number"]')){
+      var d = target.getAttribute("data-date"), h = target.getAttribute("data-habit");
+      var cursorPos = target.selectionStart;
+      setNumberLive(d, h, target.value);
+      var freshInput = document.querySelector('input[data-action="number"][data-date="' + d + '"][data-habit="' + h + '"]');
+      if (freshInput){
+        freshInput.focus();
+        try { freshInput.setSelectionRange(cursorPos, cursorPos); } catch(err){}
+      }
+    } else if (target.matches && target.matches('[data-action="emoji-search"]')){
+      var searchPrefix = target.getAttribute("data-prefix");
+      var searchCursor = target.selectionStart;
+      state.emojiSearchQuery = target.value;
+      render();
+      var freshSearch = document.getElementById(searchPrefix + "-emoji-search");
+      if (freshSearch){
+        freshSearch.focus();
+        try { freshSearch.setSelectionRange(searchCursor, searchCursor); } catch(err){}
+      }
+    } else if (target.matches && target.matches('[data-action="custom-emoji"]')){
+      var customPrefix = target.getAttribute("data-prefix");
+      var customCursor = target.selectionStart;
+      state.pendingIconValue = target.value;
+      render();
+      var freshCustom = document.getElementById(customPrefix + "-emoji-custom");
+      if (freshCustom){
+        freshCustom.focus();
+        try { freshCustom.setSelectionRange(customCursor, customCursor); } catch(err){}
+      }
+    }
+  });
+
+  document.addEventListener("focusout", function(e){
+    var target = e.target;
+    if (target.matches && target.matches('[data-action="number"]')){
+      setNumber(target.getAttribute("data-date"), target.getAttribute("data-habit"), target.value);
+    } else if (target.matches && target.matches('[data-action="time"]')){
+      setTime(target.getAttribute("data-date"), target.getAttribute("data-habit"), target.value);
+    }
+  });
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Enter" && e.target.matches && (e.target.matches('[data-action="number"]') || e.target.matches('[data-action="time"]'))){
+      e.target.blur();
+    }
+    if (e.key === "Escape" && state.emojiPickerOpen){
+      state.emojiPickerOpen = false;
+      render();
+      return;
+    }
+    if (e.key === "Escape" && (state.editingHabitId || state.confirmRemoveId || state.confirmResetOpen || state.rhythmDropdownOpen || state.exportMenuOpen || state.colorEditorOpen || state.confirmImportOpen)){
+      state.editingHabitId = null;
+      state.confirmRemoveId = null;
+      state.confirmResetOpen = false;
+      state.rhythmDropdownOpen = false;
+      state.exportMenuOpen = false;
+      state.colorEditorOpen = false;
+      state.confirmImportOpen = false;
+      state.pendingImportData = null;
+      render();
+    }
+  });
+
+  // ---------- keep "today" accurate without a manual refresh ----------
+
+  var lastKnownDateStr = getNow().toDateString();
+
+  function checkForDayChange(){
+    var current = getNow().toDateString();
+    if (current !== lastKnownDateStr){
+      lastKnownDateStr = current;
+      if (!state.loading) render();
+    }
+  }
+
+  setInterval(checkForDayChange, 60000);
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "visible") checkForDayChange();
+  });
+
+  // ---------- init ----------
+
+  Promise.all([loadConfig(), loadEntries(state.year, state.month)]).then(function(results){
+    state.config = results[0];
+    state.entries = results[1];
+    state.loading = false;
+    render();
+  }).catch(function(e){
+    console.error("Failed to load habit ledger data", e);
+    state.config = defaultConfig();
+    state.entries = {};
+    state.loading = false;
+    render();
+  });
+
+})();
+</script>
+</body>
+</html>
