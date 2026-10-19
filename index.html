@@ -890,6 +890,45 @@
   "use strict";
 
   var CONFIG_KEY = "habit-ledger:config";
+
+  // Storage adapter: Claude artifact storage -> localStorage -> in-memory.
+  // Never throws synchronously; always returns promises.
+  var memStore = {};
+  var store = {
+    get: function(k){
+      try {
+        if (window.storage && typeof window.storage.get === "function") return Promise.resolve(window.storage.get(k));
+      } catch(e){}
+      try {
+        var v = window.localStorage.getItem(k);
+        return Promise.resolve(v === null ? null : { key:k, value:v });
+      } catch(e){}
+      return Promise.resolve(Object.prototype.hasOwnProperty.call(memStore,k) ? { key:k, value:memStore[k] } : null);
+    },
+    set: function(k,v){
+      try {
+        if (window.storage && typeof window.storage.set === "function") return Promise.resolve(window.storage.set(k,v));
+      } catch(e){}
+      try { window.localStorage.setItem(k,v); return Promise.resolve({ key:k, value:v }); } catch(e){}
+      memStore[k] = v;
+      return Promise.resolve({ key:k, value:v });
+    },
+    list: function(prefix){
+      try {
+        if (window.storage && typeof window.storage.list === "function") return Promise.resolve(window.storage.list(prefix));
+      } catch(e){}
+      var keys = [];
+      try {
+        for (var i = 0; i < window.localStorage.length; i++){
+          var kk = window.localStorage.key(i);
+          if (kk && kk.indexOf(prefix) === 0) keys.push(kk);
+        }
+      } catch(e){
+        Object.keys(memStore).forEach(function(kk){ if (kk.indexOf(prefix) === 0) keys.push(kk); });
+      }
+      return Promise.resolve({ keys: keys });
+    }
+  };
   var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
   function pad(n){ return String(n).padStart(2,"0"); }
@@ -2976,7 +3015,7 @@
   // ---------- storage ----------
 
   function loadConfig(){
-    return window.storage.get(CONFIG_KEY).then(function(res){
+    return store.get(CONFIG_KEY).then(function(res){
       return res ? JSON.parse(res.value) : defaultConfig();
     }).catch(function(){
       return defaultConfig();
@@ -2984,13 +3023,13 @@
   }
 
   function saveConfig(){
-    return window.storage.set(CONFIG_KEY, JSON.stringify(state.config)).catch(function(e){
+    return store.set(CONFIG_KEY, JSON.stringify(state.config)).catch(function(e){
       console.error("Failed to save config", e);
     });
   }
 
   function loadEntries(y,m){
-    return window.storage.get(entriesKey(y,m)).then(function(res){
+    return store.get(entriesKey(y,m)).then(function(res){
       return res ? JSON.parse(res.value) : {};
     }).catch(function(){
       return {};
@@ -3023,13 +3062,13 @@
   // ---------- export ----------
 
   function collectAllStoredMonths(){
-    return window.storage.list("habit-ledger:entries:").then(function(listResult){
+    return store.list("habit-ledger:entries:").then(function(listResult){
       var keys = (listResult && listResult.keys) || [];
       var monthEntries = {};
       return Promise.all(keys.map(function(k){
         var keyStr = typeof k === "string" ? k : ((k && k.key) || "");
         if (!keyStr) return null;
-        return window.storage.get(keyStr).then(function(res){
+        return store.get(keyStr).then(function(res){
           var mk = keyStr.replace("habit-ledger:entries:", "");
           monthEntries[mk] = res ? JSON.parse(res.value) : {};
         }).catch(function(){
@@ -3196,7 +3235,7 @@
     saveConfig();
     var monthKeys = Object.keys(data.entries);
     monthKeys.forEach(function(mk){
-      window.storage.set("habit-ledger:entries:" + mk, JSON.stringify(data.entries[mk])).catch(function(e){
+      store.set("habit-ledger:entries:" + mk, JSON.stringify(data.entries[mk])).catch(function(e){
         console.error("Failed to persist imported month " + mk, e);
       });
     });
@@ -3307,7 +3346,7 @@
   }
 
   function saveEntries(){
-    return window.storage.set(entriesKey(state.year, state.month), JSON.stringify(state.entries)).catch(function(e){
+    return store.set(entriesKey(state.year, state.month), JSON.stringify(state.entries)).catch(function(e){
       console.error("Failed to save entries", e);
     });
   }
